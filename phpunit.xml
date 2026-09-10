@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <env name="APP_TIMEZONE" value="Africa/Abidjan"/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="BROADCAST_CONNECTION" value="null"/>
+        <env name="CACHE_STORE" value="array"/>
+
+        <!--
+            Les tests tournent sur MySQL, comme la production. Une suite verte
+            sur SQLite ne prouverait rien des contraintes reellement appliquees
+            en production : c'est precisement une contrainte d'unicite — une
+            place vendue deux fois, un billet scanne deux fois — que ce projet
+            doit garantir, et SQLite ne se comporte pas comme MySQL sur les
+            index partiels, les colonnes JSON ni le verrouillage de lignes.
+            La base de test est distincte de la base applicative.
+        -->
+        <env name="DB_CONNECTION" value="mysql"/>
+        <env name="DB_HOST" value="127.0.0.1"/>
+        <env name="DB_PORT" value="3306"/>
+        <env name="DB_DATABASE" value="billeterie_testing"/>
+        <env name="DB_USERNAME" value="root"/>
+        <env name="DB_PASSWORD" value=""/>
+        <env name="DB_URL" value=""/>
+
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="SESSION_DRIVER" value="array"/>
+
+        <!-- Reglages metier figes : les tests ne doivent pas dependre du .env local. -->
+        <env name="TICKETING_CURRENCY" value="XOF"/>
+        <env name="TICKETING_HOLD_MINUTES" value="15"/>
+        <env name="TICKETING_SIGNING_KEY" value="base64:dGVzdC1zaWduaW5nLWtleS1ub3QtYS1zZWNyZXQtMDAwMDAwMDA="/>
+        <env name="TICKETING_KEY_VERSION" value="1"/>
+        <env name="TICKETING_COMMISSION_PER_MILLE" value="25"/>
+        <env name="PAYMENT_GATEWAY" value="simulated"/>
+        <env name="PAYMENT_GATEWAY_WEBHOOK_SECRET" value="test-webhook-secret"/>
+        <env name="NOTIFICATION_DRIVER" value="array"/>
+
+        <env name="PULSE_ENABLED" value="false"/>
+        <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="NIGHTWATCH_ENABLED" value="false"/>
+    </php>
+</phpunit>

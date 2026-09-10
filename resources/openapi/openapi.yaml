@@ -1,0 +1,1503 @@
+openapi: 3.0.3
+
+info:
+  title: Billetterie interurbaine — API REST
+  version: "1.0.0"
+  description: |
+    API de la plateforme de billetterie de transport interurbain : recherche et
+    reservation en ligne, paiement mobile money, vente au guichet (y compris hors
+    ligne), controle des billets a l'embarquement, et suivi d'activite des
+    compagnies partenaires.
+
+    ## Garanties du domaine
+
+    - **Une place n'est jamais vendue deux fois.** Garanti par un index unique en
+      base sur `(depart, place)` ; une course perdue renvoie `409 seat_unavailable`.
+    - **Un billet scanne une premiere fois est refuse au second scan.** La decision
+      est prise sous verrou de ligne ; le verdict `already_used` porte l'heure du
+      premier passage.
+    - **La synchronisation hors ligne est rejouable.** Chaque vente et chaque scan
+      realises sans reseau portent une `client_reference` : un envoi rejoue est
+      reconnu et ne cree aucun doublon.
+    - **Aucune donnee de paiement n'est stockee.** Le paiement est delegue a un
+      agregateur ; seule sa reference externe est conservee.
+
+    ## Conventions
+
+    - Identifiants : UUID. References publiques lisibles : `RES-…`, `BIL-…`, `DEP-…`.
+    - Montants : **entiers en francs CFA (XOF)**, sans decimale.
+    - Ressource unique : `{ "data": { … } }` ; collection paginee :
+      `{ "data": [ … ], "links": { … }, "meta": { … } }`.
+    - Erreur : `{ "message", "error_code", "context" }`, plus `errors` par champ en 422.
+      Le client doit router sur `error_code`, stable, et non sur le message.
+
+    ## Authentification
+
+    Jeton Bearer (Laravel Sanctum), obtenu par `POST /login`. Les routes du
+    parcours voyageur sont publiques ; les autres exigent un jeton et une
+    permission. Le perimetre de compagnie est deduit du jeton, jamais de la
+    requete.
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8000/api
+    description: Environnement local
+
+tags:
+  - name: Systeme
+  - name: Authentification
+  - name: Compte
+  - name: Recherche
+    description: Parcours voyageur public.
+  - name: Reservations
+  - name: Guichet
+    description: Vente au comptoir et synchronisation hors ligne.
+  - name: Billets
+    description: Consultation, QR code et controle a l'embarquement.
+  - name: Paiements
+  - name: Departs
+  - name: Referentiel
+    description: Compagnies, villes, gares, vehicules, itineraires.
+  - name: Suivi
+    description: Tableau de bord et exports.
+  - name: Utilisateurs
+  - name: Audit
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      tags: [Systeme]
+      summary: Sonde de sante (base de donnees, cle de signature des billets)
+      security: []
+      responses:
+        "200": { description: Service operationnel }
+        "503": { description: Service degrade }
+
+  # --- Authentification ---------------------------------------------------------
+
+  /login:
+    post:
+      tags: [Authentification]
+      summary: Connexion et emission d'un jeton
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+                device_name: { type: string, example: tablette-guichet-01 }
+      responses:
+        "200":
+          description: Jeton et compte
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionEnvelope" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /register:
+    post:
+      tags: [Authentification]
+      summary: Inscription d'un voyageur (role impose par le serveur)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password, password_confirmation]
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                phone: { type: string, nullable: true }
+                password: { type: string, minLength: 8 }
+                password_confirmation: { type: string }
+      responses:
+        "201":
+          description: Compte cree
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionEnvelope" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /logout:
+    post:
+      tags: [Authentification]
+      summary: Revoque le jeton courant
+      responses:
+        "204": { description: Deconnecte }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /me:
+    get:
+      tags: [Compte]
+      summary: Compte de l'appelant, avec roles et permissions
+      responses:
+        "200":
+          description: Compte
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/AuthenticatedUser" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+    patch:
+      tags: [Compte]
+      summary: Modifie son propre profil
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                phone: { type: string, nullable: true }
+      responses:
+        "200": { description: Profil mis a jour }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /me/password:
+    put:
+      tags: [Compte]
+      summary: Change son mot de passe (l'ancien est exige)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, password, password_confirmation]
+              properties:
+                current_password: { type: string }
+                password: { type: string, minLength: 8 }
+                password_confirmation: { type: string }
+      responses:
+        "200": { description: Mot de passe modifie }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /me/tokens:
+    delete:
+      tags: [Compte]
+      summary: Revoque tous les jetons sauf le courant (tablette perdue)
+      responses:
+        "200": { description: Nombre de jetons revoques }
+
+  /me/bookings:
+    get:
+      tags: [Compte]
+      summary: Reservations du voyageur connecte
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Reservations
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BookingPage" }
+
+  # --- Parcours voyageur (public) -------------------------------------------------
+
+  /cities/options:
+    get:
+      tags: [Recherche]
+      summary: Villes desservies, pour le formulaire de recherche
+      security: []
+      responses:
+        "200":
+          description: Villes actives
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/City" }
+
+  /trips/search:
+    get:
+      tags: [Recherche]
+      summary: Departs disponibles pour un trajet et une date
+      security: []
+      parameters:
+        - { name: origin, in: query, required: true, schema: { type: string, example: abidjan }, description: Slug de la ville de depart }
+        - { name: destination, in: query, required: true, schema: { type: string, example: bouake } }
+        - { name: date, in: query, required: true, schema: { type: string, format: date } }
+        - { name: passengers, in: query, schema: { type: integer, minimum: 1, maximum: 10 } }
+        - { name: only_available, in: query, schema: { type: boolean } }
+        - { name: company_id, in: query, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Departs tries par heure, avec places disponibles
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Trip" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /trips/{trip}/seat-map:
+    get:
+      tags: [Recherche]
+      summary: Plan de salle d'un depart, et le depart lui-meme
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200":
+          description: Plan de salle
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/SeatMap" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /bookings:
+    post:
+      tags: [Reservations]
+      summary: Reservation en ligne (bloque les places 15 minutes)
+      security: []
+      description: >
+        Prix, compagnie et canal sont deduits du depart ; ils ne sont jamais lus
+        dans la requete.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BookingInput" }
+      responses:
+        "201":
+          description: Reservation en attente de paiement
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BookingEnvelope" }
+        "409":
+          description: "`seat_unavailable` ou `trip_not_bookable`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+    get:
+      tags: [Reservations]
+      summary: Liste des reservations (permission bookings.view, perimetre compagnie)
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/Search"
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/Direction"
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/BookingStatus" } }
+        - { name: channel, in: query, schema: { $ref: "#/components/schemas/BookingChannel" } }
+        - { name: trip_id, in: query, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Reservations
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BookingPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /bookings/reference/{reference}:
+    get:
+      tags: [Reservations]
+      summary: Retrouver une reservation par sa reference (lien du SMS)
+      security: []
+      parameters:
+        - { name: reference, in: path, required: true, schema: { type: string, example: RES-K7M3XZ } }
+      responses:
+        "200":
+          description: Reservation avec billets et encaissements
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BookingEnvelope" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /bookings/{booking}:
+    get:
+      tags: [Reservations]
+      summary: Detail d'une reservation (titulaire ou compagnie)
+      parameters:
+        - $ref: "#/components/parameters/BookingId"
+      responses:
+        "200":
+          description: Reservation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BookingEnvelope" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /bookings/{booking}/cancel:
+    post:
+      tags: [Reservations]
+      summary: Annule une reservation et rend ses places a la vente
+      parameters:
+        - $ref: "#/components/parameters/BookingId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string, nullable: true }
+      responses:
+        "200":
+          description: Reservation annulee
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BookingEnvelope" }
+        "409":
+          description: "`booking_not_cancellable` ou `booking_already_boarded`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /bookings/{booking}/payments:
+    post:
+      tags: [Paiements]
+      summary: Paiement mobile money d'une reservation en attente
+      security: []
+      description: Le montant vient de la reservation. Refuse si le delai de blocage est ecoule.
+      parameters:
+        - $ref: "#/components/parameters/BookingId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider, payer_msisdn]
+              properties:
+                provider: { $ref: "#/components/schemas/MobileMoneyProvider" }
+                payer_msisdn: { type: string, example: "+2250700000000" }
+      responses:
+        "201":
+          description: Encaissement et reservation mise a jour
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      payment: { $ref: "#/components/schemas/Payment" }
+                      booking: { $ref: "#/components/schemas/Booking" }
+        "409":
+          description: "`booking_not_payable` ou `booking_hold_expired`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /payments/webhook:
+    post:
+      tags: [Paiements]
+      summary: Rappel de l'agregateur de paiement (signature HMAC du corps brut)
+      security: []
+      parameters:
+        - { name: X-Signature, in: header, required: true, schema: { type: string }, description: HMAC-SHA256 hexadecimal du corps brut }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reference, status]
+              properties:
+                reference: { type: string }
+                status: { type: string, example: succeeded }
+                reason: { type: string }
+                msisdn: { type: string }
+      responses:
+        "200":
+          description: Rappel traite (un rappel rejoue est ignore)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Payment" }
+        "401":
+          description: "`invalid_webhook_signature`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: "`unknown_payment_reference`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /tickets/{code}/qr:
+    get:
+      tags: [Billets]
+      summary: QR code d'un billet, en SVG
+      security: []
+      parameters:
+        - { name: code, in: path, required: true, schema: { type: string, example: BIL-K7M3XZ } }
+      responses:
+        "200":
+          description: Image SVG
+          content:
+            image/svg+xml:
+              schema: { type: string }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # --- Guichet et embarquement -----------------------------------------------------
+
+  /counter-sales:
+    post:
+      tags: [Guichet]
+      summary: Vente au comptoir, encaissee immediatement (permission sales.create)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/BookingInput"
+                - type: object
+                  required: [payment_method]
+                  properties:
+                    payment_method: { $ref: "#/components/schemas/PaymentMethod" }
+                    payment_provider: { $ref: "#/components/schemas/MobileMoneyProvider" }
+                    payer_msisdn: { type: string, nullable: true }
+                    station_id: { type: string, format: uuid, nullable: true }
+                    notes: { type: string, nullable: true }
+                    client_reference: { type: string, nullable: true, description: Rend la vente idempotente }
+      responses:
+        "201":
+          description: Vente enregistree
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      booking: { $ref: "#/components/schemas/Booking" }
+                      payment: { $ref: "#/components/schemas/Payment" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: "`seat_unavailable`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /offline-sales/sync:
+    post:
+      tags: [Guichet]
+      summary: Synchronisation des ventes realisees hors ligne (lot de 100 au plus)
+      description: >
+        Chaque vente est traitee independamment et rend son propre verdict :
+        `accepted`, `duplicate` (deja connue sous sa reference client) ou
+        `rejected` avec son `error_code`. Un lot rejoue ne cree aucun doublon.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sales]
+              properties:
+                sales:
+                  type: array
+                  maxItems: 100
+                  items:
+                    allOf:
+                      - $ref: "#/components/schemas/BookingInput"
+                      - type: object
+                        required: [client_reference, sold_at, payment_method]
+                        properties:
+                          client_reference: { type: string }
+                          sold_at: { type: string, format: date-time, description: Heure reelle de la vente sur la tablette }
+                          payment_method: { $ref: "#/components/schemas/PaymentMethod" }
+                          payer_msisdn: { type: string, nullable: true }
+                          station_id: { type: string, format: uuid, nullable: true }
+      responses:
+        "200":
+          description: Verdict par vente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      summary:
+                        type: object
+                        properties:
+                          total: { type: integer }
+                          accepted: { type: integer }
+                          duplicate: { type: integer }
+                          rejected: { type: integer }
+                      results:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            client_reference: { type: string }
+                            status: { type: string, enum: [accepted, duplicate, rejected] }
+                            booking_reference: { type: string }
+                            error_code: { type: string }
+                            message: { type: string }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /tickets/validate:
+    post:
+      tags: [Billets]
+      summary: Controle d'un billet a l'embarquement (permission tickets.validate)
+      description: >
+        Accepte le contenu du QR code ou le code du billet saisi a la main. Un
+        billet deja scanne est refuse (`already_used`), sauf rejeu du meme
+        geste sous la meme `client_reference`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string }
+                trip_id: { type: string, format: uuid, nullable: true }
+                station_id: { type: string, format: uuid, nullable: true }
+                client_reference: { type: string, nullable: true }
+      responses:
+        "200":
+          description: Embarquement autorise
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScanResultEnvelope" }
+        "404":
+          description: Billet introuvable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScanResultEnvelope" }
+        "409":
+          description: Refus metier (deja utilise, mauvais depart, annule…)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScanResultEnvelope" }
+        "422":
+          description: Signature invalide
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScanResultEnvelope" }
+
+  /trips/{trip}/manifest:
+    get:
+      tags: [Billets]
+      summary: Liste d'embarquement d'un depart (mise en cache hors ligne)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200":
+          description: Billets du depart
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Ticket" }
+
+  /tickets:
+    get:
+      tags: [Billets]
+      summary: Liste des billets (permission tickets.view)
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/Search"
+        - { name: trip_id, in: query, schema: { type: string, format: uuid } }
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/TicketStatus" } }
+      responses:
+        "200": { description: Billets pagines }
+
+  /tickets/{ticket}/print:
+    get:
+      tags: [Billets]
+      summary: QR code PNG pour l'imprimante thermique du guichet
+      parameters:
+        - { name: ticket, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Image PNG
+          content:
+            image/png:
+              schema: { type: string, format: binary }
+
+  # --- Encaissements ------------------------------------------------------------------
+
+  /payments:
+    get:
+      tags: [Paiements]
+      summary: Liste des encaissements (permission payments.view)
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - { name: method, in: query, schema: { $ref: "#/components/schemas/PaymentMethod" } }
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/PaymentStatus" } }
+      responses:
+        "200": { description: Encaissements pagines }
+
+  /payments/{payment}:
+    get:
+      tags: [Paiements]
+      summary: Detail d'un encaissement
+      parameters:
+        - $ref: "#/components/parameters/PaymentId"
+      responses:
+        "200":
+          description: Encaissement
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Payment" }
+
+  /payments/{payment}/refund:
+    post:
+      tags: [Paiements]
+      summary: Rembourse un encaissement acquis (permission payments.refund)
+      parameters:
+        - $ref: "#/components/parameters/PaymentId"
+      responses:
+        "200": { description: Encaissement rembourse }
+
+  # --- Departs --------------------------------------------------------------------------
+
+  /trips:
+    get:
+      tags: [Departs]
+      summary: Liste des departs (permission trips.view, perimetre compagnie)
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/Search"
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/Direction"
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/TripStatus" } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        "200": { description: Departs pagines }
+    post:
+      tags: [Departs]
+      summary: Programme un depart (tarif et capacite figes a la creation)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [itinerary_id, vehicle_id, departure_station_id, arrival_station_id, departs_at]
+              properties:
+                itinerary_id: { type: string, format: uuid }
+                vehicle_id: { type: string, format: uuid }
+                departure_station_id: { type: string, format: uuid }
+                arrival_station_id: { type: string, format: uuid }
+                departs_at: { type: string, format: date-time }
+                arrives_at: { type: string, format: date-time, nullable: true }
+                price: { type: integer, nullable: true }
+      responses:
+        "201": { description: Depart programme }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /trips/{trip}:
+    get:
+      tags: [Departs]
+      summary: Detail d'un depart, avec places prises
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200": { description: Depart }
+    patch:
+      tags: [Departs]
+      summary: Modifie un depart (tarif et vehicule figes des la premiere vente)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                departs_at: { type: string, format: date-time }
+                price: { type: integer }
+                vehicle_id: { type: string, format: uuid }
+      responses:
+        "200": { description: Depart modifie }
+        "409":
+          description: "`trip_field_frozen` ou `trip_not_editable`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    delete:
+      tags: [Departs]
+      summary: Supprime un depart sans aucune reservation
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "204": { description: Supprime }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /trips/{trip}/cancel:
+    post:
+      tags: [Departs]
+      summary: Annule un depart, avec motif
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 5 }
+      responses:
+        "200": { description: Depart annule }
+
+  /trips/{trip}/status:
+    post:
+      tags: [Departs]
+      summary: Fait avancer le cycle de vie (embarquement, depart, arrivee)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { $ref: "#/components/schemas/TripStatus" }
+      responses:
+        "200": { description: Statut modifie }
+
+  # --- Referentiel ------------------------------------------------------------------------
+
+  /companies:
+    get:
+      tags: [Referentiel]
+      summary: Compagnies (un gestionnaire ne voit que la sienne)
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Search"
+      responses:
+        "200": { description: Compagnies paginees }
+    post:
+      tags: [Referentiel]
+      summary: Cree une compagnie (permission platform.manage)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CompanyInput" }
+      responses:
+        "201": { description: Compagnie creee }
+
+  /companies/{company}:
+    get:
+      tags: [Referentiel]
+      summary: Detail d'une compagnie
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+      responses:
+        "200": { description: Compagnie }
+    patch:
+      tags: [Referentiel]
+      summary: Modifie une compagnie
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CompanyInput" }
+      responses:
+        "200": { description: Compagnie modifiee }
+    delete:
+      tags: [Referentiel]
+      summary: Supprime une compagnie sans activite (permission platform.manage)
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+      responses:
+        "204": { description: Supprimee }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /cities:
+    get:
+      tags: [Referentiel]
+      summary: Villes (liste paginee d'administration)
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Search"
+      responses:
+        "200": { description: Villes paginees }
+    post:
+      tags: [Referentiel]
+      summary: Ajoute une ville (permission platform.manage)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CityInput" }
+      responses:
+        "201": { description: Ville creee }
+
+  /cities/{city}:
+    get:
+      tags: [Referentiel]
+      summary: Detail d'une ville (par slug)
+      parameters:
+        - $ref: "#/components/parameters/CitySlug"
+      responses:
+        "200": { description: Ville }
+    patch:
+      tags: [Referentiel]
+      summary: Modifie une ville
+      parameters:
+        - $ref: "#/components/parameters/CitySlug"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CityInput" }
+      responses:
+        "200": { description: Ville modifiee }
+    delete:
+      tags: [Referentiel]
+      summary: Supprime une ville inutilisee
+      parameters:
+        - $ref: "#/components/parameters/CitySlug"
+      responses:
+        "204": { description: Supprimee }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /stations:
+    get:
+      tags: [Referentiel]
+      summary: Gares (propres a la compagnie et partagees)
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Search"
+        - { name: city_id, in: query, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Gares paginees }
+    post:
+      tags: [Referentiel]
+      summary: Ajoute une gare
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StationInput" }
+      responses:
+        "201": { description: Gare creee }
+
+  /stations/{station}:
+    get:
+      tags: [Referentiel]
+      summary: Detail d'une gare
+      parameters:
+        - $ref: "#/components/parameters/StationId"
+      responses:
+        "200": { description: Gare }
+    patch:
+      tags: [Referentiel]
+      summary: Modifie une gare (une gare partagee est reservee a la plateforme)
+      parameters:
+        - $ref: "#/components/parameters/StationId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StationInput" }
+      responses:
+        "200": { description: Gare modifiee }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    delete:
+      tags: [Referentiel]
+      summary: Supprime une gare inutilisee
+      parameters:
+        - $ref: "#/components/parameters/StationId"
+      responses:
+        "204": { description: Supprimee }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /vehicles:
+    get:
+      tags: [Referentiel]
+      summary: Vehicules de la compagnie
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Search"
+        - { name: class, in: query, schema: { $ref: "#/components/schemas/VehicleClass" } }
+      responses:
+        "200": { description: Vehicules pagines }
+    post:
+      tags: [Referentiel]
+      summary: Ajoute un vehicule (rattache a la compagnie de l'appelant)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VehicleInput" }
+      responses:
+        "201": { description: Vehicule cree }
+
+  /vehicles/{vehicle}:
+    get:
+      tags: [Referentiel]
+      summary: Detail d'un vehicule, avec son plan de salle
+      parameters:
+        - $ref: "#/components/parameters/VehicleId"
+      responses:
+        "200": { description: Vehicule }
+    patch:
+      tags: [Referentiel]
+      summary: Modifie un vehicule
+      parameters:
+        - $ref: "#/components/parameters/VehicleId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VehicleInput" }
+      responses:
+        "200": { description: Vehicule modifie }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    delete:
+      tags: [Referentiel]
+      summary: Supprime un vehicule jamais programme
+      parameters:
+        - $ref: "#/components/parameters/VehicleId"
+      responses:
+        "204": { description: Supprime }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /itineraries:
+    get:
+      tags: [Referentiel]
+      summary: Itineraires de la compagnie
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Search"
+      responses:
+        "200": { description: Itineraires pagines }
+    post:
+      tags: [Referentiel]
+      summary: Ajoute un itineraire
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ItineraryInput" }
+      responses:
+        "201": { description: Itineraire cree }
+
+  /itineraries/{itinerary}:
+    get:
+      tags: [Referentiel]
+      summary: Detail d'un itineraire
+      parameters:
+        - $ref: "#/components/parameters/ItineraryId"
+      responses:
+        "200": { description: Itineraire }
+    patch:
+      tags: [Referentiel]
+      summary: Modifie duree, distance, tarif ou etat (les villes sont figees)
+      parameters:
+        - $ref: "#/components/parameters/ItineraryId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ItineraryInput" }
+      responses:
+        "200": { description: Itineraire modifie }
+    delete:
+      tags: [Referentiel]
+      summary: Supprime un itineraire jamais programme
+      parameters:
+        - $ref: "#/components/parameters/ItineraryId"
+      responses:
+        "204": { description: Supprime }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  # --- Suivi d'activite -----------------------------------------------------------------------
+
+  /dashboard:
+    get:
+      tags: [Suivi]
+      summary: Indicateurs de la periode (permission reports.view, perimetre compagnie)
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - { name: station_id, in: query, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: >
+            Recette, encaissements par moyen de paiement, ventes par canal,
+            recette quotidienne, remplissage par depart, ventes par agent.
+
+  /exports/bookings:
+    get:
+      tags: [Suivi]
+      summary: Export CSV des ventes (UTF-8 avec BOM, separateur point-virgule)
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+      responses:
+        "200":
+          description: Fichier CSV
+          content:
+            text/csv:
+              schema: { type: string }
+
+  /exports/occupancy:
+    get:
+      tags: [Suivi]
+      summary: Export CSV du taux de remplissage par depart
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+      responses:
+        "200":
+          description: Fichier CSV
+          content:
+            text/csv:
+              schema: { type: string }
+
+  # --- Comptes et audit -----------------------------------------------------------------------
+
+  /users:
+    get:
+      tags: [Utilisateurs]
+      summary: Comptes (permission users.view, perimetre compagnie)
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Search"
+        - { name: role, in: query, schema: { type: string } }
+      responses:
+        "200": { description: Comptes pagines }
+    post:
+      tags: [Utilisateurs]
+      summary: Cree un compte (un gestionnaire n'attribue que gestionnaire et agent)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserInput" }
+      responses:
+        "201": { description: Compte cree }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /users/{user}:
+    get:
+      tags: [Utilisateurs]
+      summary: Detail d'un compte
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200": { description: Compte }
+    patch:
+      tags: [Utilisateurs]
+      summary: Modifie un compte (mot de passe vide = inchange)
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserInput" }
+      responses:
+        "200": { description: Compte modifie }
+    delete:
+      tags: [Utilisateurs]
+      summary: Supprime un compte sans vente (sinon, desactiver)
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "204": { description: Supprime }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /roles:
+    get:
+      tags: [Utilisateurs]
+      summary: Roles et permissions (lecture seule, definis par seeder versionne)
+      responses:
+        "200": { description: Roles }
+
+  /audit-logs:
+    get:
+      tags: [Audit]
+      summary: Journal d'audit (lecture seule)
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Search"
+        - { name: event, in: query, schema: { type: string, enum: [created, updated, deleted] } }
+      responses:
+        "200": { description: Entrees paginees }
+
+  /audit-logs/facets:
+    get:
+      tags: [Audit]
+      summary: Valeurs disponibles pour les filtres du journal
+      responses:
+        "200": { description: Types d'objets et evenements }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: "Jeton Sanctum « {id}|{secret} » obtenu par POST /login."
+
+  parameters:
+    Page: { name: page, in: query, schema: { type: integer, minimum: 1 } }
+    PerPage: { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+    Search: { name: search, in: query, schema: { type: string } }
+    Sort: { name: sort, in: query, schema: { type: string }, description: Cle publique de tri (liste blanche par ressource) }
+    Direction: { name: direction, in: query, schema: { type: string, enum: [asc, desc] } }
+    From: { name: from, in: query, schema: { type: string, format: date } }
+    To: { name: to, in: query, schema: { type: string, format: date } }
+    TripId: { name: trip, in: path, required: true, schema: { type: string, format: uuid } }
+    BookingId: { name: booking, in: path, required: true, schema: { type: string, format: uuid } }
+    PaymentId: { name: payment, in: path, required: true, schema: { type: string, format: uuid } }
+    CompanyId: { name: company, in: path, required: true, schema: { type: string, format: uuid } }
+    CitySlug: { name: city, in: path, required: true, schema: { type: string, example: abidjan } }
+    StationId: { name: station, in: path, required: true, schema: { type: string, format: uuid } }
+    VehicleId: { name: vehicle, in: path, required: true, schema: { type: string, format: uuid } }
+    ItineraryId: { name: itinerary, in: path, required: true, schema: { type: string, format: uuid } }
+    UserId: { name: user, in: path, required: true, schema: { type: string, format: uuid } }
+
+  responses:
+    Unauthenticated:
+      description: "`unauthenticated`"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: "`forbidden` ou `company_scope_violation`"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: "`not_found`"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: Conflit d'etat metier (`resource_in_use`, `trip_has_bookings`, `user_has_sales`…)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ValidationError:
+      description: "`validation_failed`, avec `errors` par champ"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    TooManyRequests:
+      description: "`too_many_requests`"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      required: [message, error_code, context]
+      properties:
+        message: { type: string }
+        error_code: { type: string, example: seat_unavailable }
+        context: { type: object }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+
+    TripStatus:
+      type: string
+      enum: [scheduled, boarding, departed, arrived, cancelled]
+    BookingStatus:
+      type: string
+      enum: [pending, confirmed, cancelled, expired, refunded]
+    BookingChannel:
+      type: string
+      enum: [online, counter, offline_counter]
+    TicketStatus:
+      type: string
+      enum: [issued, used, cancelled, refunded]
+    ScanOutcome:
+      type: string
+      enum: [accepted, already_used, wrong_trip, not_found, invalid_signature, cancelled, trip_cancelled, outside_boarding_window]
+    PaymentMethod:
+      type: string
+      enum: [cash, mobile_money, card]
+    PaymentStatus:
+      type: string
+      enum: [pending, succeeded, failed, expired, refunded]
+    MobileMoneyProvider:
+      type: string
+      enum: [orange_money, mtn_money, moov_money, wave]
+    VehicleClass:
+      type: string
+      enum: [standard, comfort, vip, minibus]
+
+    AuthenticatedUser:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string, nullable: true }
+        company_id: { type: string, format: uuid, nullable: true }
+        roles:
+          type: array
+          items: { type: string, enum: [platform_admin, company_manager, agent, passenger] }
+        permissions:
+          type: array
+          items: { type: string }
+
+    SessionEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            token: { type: string }
+            user: { $ref: "#/components/schemas/AuthenticatedUser" }
+
+    City:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        region: { type: string, nullable: true }
+
+    Trip:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: string, example: DEP-260914-K7M3XZ }
+        departs_at: { type: string, format: date-time }
+        arrives_at: { type: string, format: date-time, nullable: true }
+        price: { type: integer, example: 7000 }
+        currency: { type: string, example: XOF }
+        seat_capacity: { type: integer }
+        seats_taken: { type: integer, nullable: true }
+        seats_available: { type: integer, nullable: true }
+        status: { $ref: "#/components/schemas/TripStatus" }
+        accepts_bookings: { type: boolean }
+
+    SeatMap:
+      type: object
+      properties:
+        capacity: { type: integer }
+        taken: { type: integer }
+        available: { type: integer }
+        rows:
+          type: array
+          items:
+            type: object
+            properties:
+              row: { type: integer }
+              aisle_after: { type: integer }
+              seats:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    number: { type: string, example: 12A }
+                    is_taken: { type: boolean }
+        trip: { $ref: "#/components/schemas/Trip" }
+
+    BookingInput:
+      type: object
+      required: [trip_id, customer_name, customer_phone, passengers]
+      properties:
+        trip_id: { type: string, format: uuid }
+        customer_name: { type: string }
+        customer_phone: { type: string }
+        customer_email: { type: string, format: email, nullable: true }
+        passengers:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [seat_number, name]
+            properties:
+              seat_number: { type: string, example: 3B }
+              name: { type: string }
+              phone: { type: string, nullable: true }
+
+    Ticket:
+      type: object
+      description: La signature du QR n'est jamais exposee.
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string, example: BIL-K7M3XZ }
+        seat_number: { type: string, nullable: true }
+        passenger_name: { type: string }
+        status: { $ref: "#/components/schemas/TicketStatus" }
+        is_scanned: { type: boolean }
+        scanned_at: { type: string, format: date-time, nullable: true }
+
+    Payment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: string }
+        method: { $ref: "#/components/schemas/PaymentMethod" }
+        provider: { $ref: "#/components/schemas/MobileMoneyProvider" }
+        amount: { type: integer }
+        status: { $ref: "#/components/schemas/PaymentStatus" }
+        external_reference: { type: string, nullable: true }
+        payer_msisdn: { type: string, nullable: true, description: Numero tronque }
+        failure_reason: { type: string, nullable: true }
+
+    Booking:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: string, example: RES-K7M3XZ }
+        status: { $ref: "#/components/schemas/BookingStatus" }
+        channel: { $ref: "#/components/schemas/BookingChannel" }
+        customer_name: { type: string }
+        customer_phone: { type: string }
+        seats_count: { type: integer }
+        total_amount: { type: integer }
+        commission_amount: { type: integer }
+        net_amount: { type: integer }
+        expires_at: { type: string, format: date-time, nullable: true }
+        is_hold_expired: { type: boolean }
+        trip: { $ref: "#/components/schemas/Trip" }
+        tickets:
+          type: array
+          items: { $ref: "#/components/schemas/Ticket" }
+        payments:
+          type: array
+          items: { $ref: "#/components/schemas/Payment" }
+
+    BookingEnvelope:
+      type: object
+      properties:
+        data: { $ref: "#/components/schemas/Booking" }
+
+    BookingPage:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Booking" }
+        meta:
+          type: object
+          properties:
+            current_page: { type: integer }
+            last_page: { type: integer }
+            per_page: { type: integer }
+            total: { type: integer }
+
+    ScanResultEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            accepted: { type: boolean }
+            outcome: { $ref: "#/components/schemas/ScanOutcome" }
+            outcome_label: { type: string }
+            is_suspicious: { type: boolean }
+            is_replay: { type: boolean }
+            previously_scanned_at: { type: string, format: date-time, nullable: true }
+            ticket: { $ref: "#/components/schemas/Ticket" }
+
+    CompanyInput:
+      type: object
+      properties:
+        code: { type: string }
+        name: { type: string }
+        legal_name: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        commission_per_mille: { type: integer, nullable: true, description: "Vide = bareme plateforme ; 25 = 2,5 %" }
+        is_active: { type: boolean }
+
+    CityInput:
+      type: object
+      properties:
+        name: { type: string }
+        slug: { type: string }
+        region: { type: string, nullable: true }
+        is_active: { type: boolean }
+
+    StationInput:
+      type: object
+      properties:
+        city_id: { type: string, format: uuid }
+        company_id: { type: string, format: uuid, nullable: true }
+        name: { type: string }
+        address: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        is_active: { type: boolean }
+
+    VehicleInput:
+      type: object
+      properties:
+        company_id: { type: string, format: uuid }
+        registration: { type: string }
+        model: { type: string, nullable: true }
+        class: { $ref: "#/components/schemas/VehicleClass" }
+        seat_capacity: { type: integer, minimum: 4, maximum: 120 }
+        seats_per_row: { type: integer, minimum: 2, maximum: 6 }
+        is_active: { type: boolean }
+
+    ItineraryInput:
+      type: object
+      properties:
+        company_id: { type: string, format: uuid }
+        origin_city_id: { type: string, format: uuid }
+        destination_city_id: { type: string, format: uuid }
+        distance_km: { type: integer, nullable: true }
+        duration_minutes: { type: integer }
+        base_price: { type: integer }
+        is_active: { type: boolean }
+
+    UserInput:
+      type: object
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string, nullable: true }
+        password: { type: string, nullable: true }
+        company_id: { type: string, format: uuid, nullable: true }
+        is_active: { type: boolean }
+        roles:
+          type: array
+          items: { type: string }
