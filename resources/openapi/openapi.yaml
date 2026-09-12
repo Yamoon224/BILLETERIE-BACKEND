@@ -1,7 +1,7 @@
 openapi: 3.0.3
 
 info:
-  title: Billetterie interurbaine — API REST
+  title: Billetterie interurbaine - API REST
   version: "1.0.0"
   description: |
     API de la plateforme de billetterie de transport interurbain : recherche et

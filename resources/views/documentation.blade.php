@@ -3,12 +3,12 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Documentation API — Billetterie interurbaine</title>
+    <title>Documentation API - Billetterie interurbaine</title>
 
     {{--
         Swagger UI est servi depuis nos propres assets et non depuis un CDN :
-        la documentation reste consultable sans acces Internet — ce qui compte
-        pour une equipe qui travaille sur une liaison instable — et aucune
+        la documentation reste consultable sans acces Internet - ce qui compte
+        pour une equipe qui travaille sur une liaison instable - et aucune
         ressource tierce ne peut etre substituee a notre insu. Les fichiers
         sont copies depuis swagger-ui-dist par `composer run docs:assets`.
     --}}
@@ -250,7 +250,7 @@
                 Contrat complet de l'API REST : endpoints, parametres, corps de
                 requete, authentification, codes HTTP et forme des erreurs. Un test
                 automatise verifie que cette specification couvre bien toutes les
-                routes reellement exposees — la coherence est donc verifiee, pas
+                routes reellement exposees - la coherence est donc verifiee, pas
                 esperee.
             </p>
 

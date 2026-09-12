@@ -113,7 +113,7 @@
             <div>
                 <h2>Sonde de sante</h2>
                 <p style="margin:0">
-                    <code>GET /api/health</code> — verifie la base de donnees et la
+                    <code>GET /api/health</code> - verifie la base de donnees et la
                     presence de la cle de signature des billets.
                 </p>
             </div>
