@@ -6,6 +6,8 @@ use App\Domains\Audit\Contracts\AuditLogRepositoryContract;
 use App\Domains\Audit\Repositories\EloquentAuditLogRepository;
 use App\Domains\Booking\Contracts\BookingRepositoryContract;
 use App\Domains\Booking\Repositories\EloquentBookingRepository;
+use App\Domains\Favorites\Contracts\FavoriteRepositoryContract;
+use App\Domains\Favorites\Repositories\EloquentFavoriteRepository;
 use App\Domains\Network\Contracts\CityRepositoryContract;
 use App\Domains\Network\Contracts\CompanyRepositoryContract;
 use App\Domains\Network\Contracts\ItineraryRepositoryContract;
@@ -62,6 +64,9 @@ class DomainServiceProvider extends ServiceProvider
         StationRepositoryContract::class => EloquentStationRepository::class,
         VehicleRepositoryContract::class => EloquentVehicleRepository::class,
         ItineraryRepositoryContract::class => EloquentItineraryRepository::class,
+
+        // --- Parcours voyageur -------------------------------------------------
+        FavoriteRepositoryContract::class => EloquentFavoriteRepository::class,
 
         // --- Exploitation ----------------------------------------------------
         TripRepositoryContract::class => EloquentTripRepository::class,

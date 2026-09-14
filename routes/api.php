@@ -5,6 +5,7 @@ use App\Domains\Auth\Http\Controllers\AuthController;
 use App\Domains\Booking\Http\Controllers\BookingController;
 use App\Domains\Booking\Http\Controllers\CounterSaleController;
 use App\Domains\Booking\Http\Controllers\OfflineSyncController;
+use App\Domains\Favorites\Http\Controllers\FavoriteController;
 use App\Domains\Network\Http\Controllers\CityController;
 use App\Domains\Network\Http\Controllers\CompanyController;
 use App\Domains\Network\Http\Controllers\ItineraryController;
@@ -112,6 +113,13 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::put('/me/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:6,1');
     Route::delete('/me/tokens', [ProfileController::class, 'revokeOtherTokens']);
     Route::get('/me/bookings', [BookingController::class, 'mine']);
+
+    // --- Trajets favoris -------------------------------------------------------
+    // Aucune permission dediee : un voyageur ne gere que ses propres favoris,
+    // comme pour ses reservations ci-dessus.
+    Route::get('/me/favorites', [FavoriteController::class, 'index']);
+    Route::post('/favorites', [FavoriteController::class, 'store']);
+    Route::delete('/favorites/{favorite}', [FavoriteController::class, 'destroy']);
 
     // --- Reservations --------------------------------------------------------
     Route::middleware('permission:bookings.view')->group(function (): void {

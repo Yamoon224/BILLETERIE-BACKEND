@@ -50,6 +50,8 @@ tags:
   - name: Compte
   - name: Recherche
     description: Parcours voyageur public.
+  - name: Favoris
+    description: Trajets favoris du voyageur connecte.
   - name: Reservations
   - name: Guichet
     description: Vente au comptoir et synchronisation hors ligne.
@@ -207,6 +209,55 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/BookingPage" }
+
+  /me/favorites:
+    get:
+      tags: [Favoris]
+      summary: Trajets favoris du voyageur connecte
+      responses:
+        "200":
+          description: Favoris, du plus recent au plus ancien
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Favorite" }
+
+  /favorites:
+    post:
+      tags: [Favoris]
+      summary: Ajoute un trajet aux favoris
+      description: >
+        Idempotent : ajouter deux fois le meme couple de villes renvoie le
+        favori deja enregistre plutot que d'echouer.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FavoriteInput" }
+      responses:
+        "201":
+          description: Favori enregistre (ou deja existant)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Favorite" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /favorites/{favorite}:
+    delete:
+      tags: [Favoris]
+      summary: Retire un trajet des favoris
+      parameters:
+        - $ref: "#/components/parameters/FavoriteId"
+      responses:
+        "204": { description: Favori retire }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   # --- Parcours voyageur (public) -------------------------------------------------
 
@@ -1187,6 +1238,7 @@ components:
     To: { name: to, in: query, schema: { type: string, format: date } }
     TripId: { name: trip, in: path, required: true, schema: { type: string, format: uuid } }
     BookingId: { name: booking, in: path, required: true, schema: { type: string, format: uuid } }
+    FavoriteId: { name: favorite, in: path, required: true, schema: { type: string, format: uuid } }
     PaymentId: { name: payment, in: path, required: true, schema: { type: string, format: uuid } }
     CompanyId: { name: company, in: path, required: true, schema: { type: string, format: uuid } }
     CitySlug: { name: city, in: path, required: true, schema: { type: string, example: abidjan } }
@@ -1300,6 +1352,21 @@ components:
         name: { type: string }
         slug: { type: string }
         region: { type: string, nullable: true }
+
+    FavoriteInput:
+      type: object
+      required: [origin_city_id, destination_city_id]
+      properties:
+        origin_city_id: { type: string, format: uuid }
+        destination_city_id: { type: string, format: uuid }
+
+    Favorite:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        origin_city: { $ref: "#/components/schemas/City" }
+        destination_city: { $ref: "#/components/schemas/City" }
+        created_at: { type: string, format: date-time }
 
     Trip:
       type: object
