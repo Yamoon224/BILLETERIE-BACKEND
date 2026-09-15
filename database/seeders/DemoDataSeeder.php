@@ -6,13 +6,21 @@ use App\Domains\Booking\DTOs\BookingDraft;
 use App\Domains\Booking\DTOs\PassengerDraft;
 use App\Domains\Booking\Enums\BookingChannel;
 use App\Domains\Booking\Services\BookingService;
+use App\Domains\CarRental\Enums\FuelType;
+use App\Domains\CarRental\Enums\RentalVehicleCategory;
+use App\Domains\CarRental\Enums\TransmissionType;
+use App\Domains\Housing\Enums\ApartmentAmenity;
 use App\Domains\Network\Enums\VehicleClass;
+use App\Domains\Partners\Enums\PartnerType;
 use App\Domains\Payments\Enums\MobileMoneyProvider;
 use App\Domains\Payments\Services\PaymentService;
 use App\Domains\Scheduling\Services\TripService;
+use App\Models\Apartment;
 use App\Models\City;
 use App\Models\Company;
 use App\Models\Itinerary;
+use App\Models\Partner;
+use App\Models\RentalVehicle;
 use App\Models\Station;
 use App\Models\Trip;
 use App\Models\User;
@@ -45,6 +53,12 @@ class DemoDataSeeder extends Seeder
         ['name' => 'Daloa', 'slug' => 'daloa', 'region' => 'Haut-Sassandra'],
         ['name' => 'Man', 'slug' => 'man', 'region' => 'Montagnes'],
         ['name' => 'Abengourou', 'slug' => 'abengourou', 'region' => 'Comoe'],
+        // Villes balneaires : hors reseau de bus (aucune liaison pilote ne les
+        // dessert), mais destinations des piliers Appartements et Location
+        // auto — d'ou leur presence ici malgre l'absence de gare programmee.
+        ['name' => 'Assinie', 'slug' => 'assinie', 'region' => 'Sud-Comoe'],
+        ['name' => 'Grand-Bassam', 'slug' => 'grand-bassam', 'region' => 'Sud-Comoe'],
+        ['name' => 'Jacqueville', 'slug' => 'jacqueville', 'region' => 'Grands-Ponts'],
     ];
 
     public function run(): void
@@ -59,6 +73,7 @@ class DemoDataSeeder extends Seeder
         }
 
         $this->seedSales();
+        $this->seedPartners($cities);
 
         $this->command->info("Compte administrateur : {$admin->email} / password");
     }
@@ -289,5 +304,112 @@ class DemoDataSeeder extends Seeder
         }
 
         $this->command->info($trips->count() * 2 .' reservations de demonstration creees.');
+    }
+
+    /**
+     * Partenaires de demonstration pour les deux autres piliers : quelques
+     * appartements sur la cote (Assinie, Grand-Bassam, Jacqueville) et
+     * quelques vehicules de location a Abidjan, avec un gestionnaire de
+     * partenaire pour montrer le perimetre `partner_manager`.
+     *
+     * @param  array<string, City>  $cities
+     */
+    private function seedPartners(array $cities): void
+    {
+        $housingPartner = Partner::firstOrCreate(
+            ['name' => 'Cote Emeraude Residences'],
+            [
+                'type' => PartnerType::Housing,
+                'phone' => '+2252721556677',
+                'whatsapp' => '+2250701556677',
+                'email' => 'contact@cote-emeraude.example',
+                'city_id' => $cities['grand-bassam']->id,
+                'description' => 'Appartements meubles sur la cote, geres par une agence locale.',
+                'is_active' => true,
+            ],
+        );
+
+        $rentalPartner = Partner::firstOrCreate(
+            ['name' => 'Wharf Location Auto'],
+            [
+                'type' => PartnerType::CarRental,
+                'phone' => '+2252722667788',
+                'whatsapp' => '+2250701667788',
+                'email' => 'contact@wharf-location.example',
+                'city_id' => $cities['abidjan']->id,
+                'description' => 'Location de vehicules a l\'aeroport d\'Abidjan et en ville.',
+                'is_active' => true,
+            ],
+        );
+
+        $partnerManager = User::firstOrCreate(
+            ['email' => 'gestionnaire.partenaires@billetterie.test'],
+            [
+                'name' => 'Gestionnaire partenaires',
+                'phone' => '+2250700009999',
+                'password' => Hash::make('password'),
+                'partner_id' => $housingPartner->id,
+                'is_active' => true,
+            ],
+        );
+        $partnerManager->syncRoles(['partner_manager']);
+
+        /** @var list<array{title: string, city: string, neighborhood: string, bedrooms: int, bathrooms: int, capacity: int, price: int, featured: bool}> */
+        $apartments = [
+            ['title' => 'Studio vue lagune', 'city' => 'assinie', 'neighborhood' => 'Assinie Plage', 'bedrooms' => 1, 'bathrooms' => 1, 'capacity' => 2, 'price' => 15000, 'featured' => true],
+            ['title' => 'Appartement 2 chambres pieds dans l\'eau', 'city' => 'assinie', 'neighborhood' => 'Assinie Plage', 'bedrooms' => 2, 'bathrooms' => 2, 'capacity' => 4, 'price' => 35000, 'featured' => true],
+            ['title' => 'Villa coloniale renovee', 'city' => 'grand-bassam', 'neighborhood' => 'Grand-Bassam France', 'bedrooms' => 3, 'bathrooms' => 2, 'capacity' => 6, 'price' => 45000, 'featured' => true],
+            ['title' => 'Studio proche du musee', 'city' => 'grand-bassam', 'neighborhood' => 'Grand-Bassam Centre', 'bedrooms' => 1, 'bathrooms' => 1, 'capacity' => 2, 'price' => 18000, 'featured' => false],
+            ['title' => 'Appartement familial vue mer', 'city' => 'jacqueville', 'neighborhood' => 'Jacqueville Centre', 'bedrooms' => 2, 'bathrooms' => 1, 'capacity' => 5, 'price' => 25000, 'featured' => false],
+        ];
+
+        foreach ($apartments as $definition) {
+            Apartment::firstOrCreate(
+                ['partner_id' => $housingPartner->id, 'title' => $definition['title']],
+                [
+                    'city_id' => $cities[$definition['city']]->id,
+                    'description' => 'Appartement meuble, cuisine equipee, a quelques minutes de la plage.',
+                    'neighborhood' => $definition['neighborhood'],
+                    'address_line' => null,
+                    'bedrooms' => $definition['bedrooms'],
+                    'bathrooms' => $definition['bathrooms'],
+                    'capacity' => $definition['capacity'],
+                    'price_per_night' => $definition['price'],
+                    'amenities' => [ApartmentAmenity::Wifi->value, ApartmentAmenity::AirConditioning->value, ApartmentAmenity::Parking->value],
+                    'is_featured' => $definition['featured'],
+                    'is_active' => true,
+                ],
+            );
+        }
+
+        /** @var list<array{brand: string, model: string, category: RentalVehicleCategory, seats: int, price: int, featured: bool}> */
+        $rentalVehicles = [
+            ['brand' => 'Toyota', 'model' => 'Yaris', 'category' => RentalVehicleCategory::Citadine, 'seats' => 5, 'price' => 25000, 'featured' => true],
+            ['brand' => 'Hyundai', 'model' => 'Tucson', 'category' => RentalVehicleCategory::Suv, 'seats' => 5, 'price' => 45000, 'featured' => true],
+            ['brand' => 'Toyota', 'model' => 'Land Cruiser Prado', 'category' => RentalVehicleCategory::Suv, 'seats' => 7, 'price' => 65000, 'featured' => true],
+            ['brand' => 'Renault', 'model' => 'Symbol', 'category' => RentalVehicleCategory::Berline, 'seats' => 5, 'price' => 30000, 'featured' => false],
+            ['brand' => 'Toyota', 'model' => 'Hiace', 'category' => RentalVehicleCategory::Minibus, 'seats' => 14, 'price' => 55000, 'featured' => false],
+        ];
+
+        foreach ($rentalVehicles as $index => $definition) {
+            RentalVehicle::firstOrCreate(
+                ['partner_id' => $rentalPartner->id, 'brand' => $definition['brand'], 'model' => $definition['model']],
+                [
+                    'city_id' => $cities['abidjan']->id,
+                    'year' => 2024,
+                    'category' => $definition['category'],
+                    'transmission' => TransmissionType::Automatic,
+                    'fuel_type' => FuelType::Petrol,
+                    'seats' => $definition['seats'],
+                    'price_per_day' => $definition['price'],
+                    'with_driver_available' => true,
+                    'plate_number' => 'CI-DEMO-'.str_pad((string) ($index + 1), 3, '0', STR_PAD_LEFT),
+                    'is_featured' => $definition['featured'],
+                    'is_active' => true,
+                ],
+            );
+        }
+
+        $this->command->info(count($apartments).' appartements et '.count($rentalVehicles).' vehicules de location crees.');
     }
 }
