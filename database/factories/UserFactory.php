@@ -46,4 +46,10 @@ class UserFactory extends Factory
     {
         return $this->state(fn () => ['company_id' => $companyId]);
     }
+
+    /** Compte rattache a un partenaire : gestionnaire d'appartements ou de location auto. */
+    public function forPartner(string $partnerId): static
+    {
+        return $this->state(fn () => ['partner_id' => $partnerId]);
+    }
 }

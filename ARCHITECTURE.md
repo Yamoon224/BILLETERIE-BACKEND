@@ -26,6 +26,9 @@ app/Domains/{Domaine}/
 | `Auth` | Connexion, inscription voyageur, deconnexion |
 | `Users` | Comptes, profil, roles |
 | `Network` | Compagnies, villes, gares, vehicules et plan de salle, itineraires |
+| `Partners` | Proprietaires et agences partenaires (appartements, location auto) |
+| `Housing` | Catalogue d'appartements meubles |
+| `CarRental` | Catalogue de vehicules de location courte duree |
 | `Scheduling` | Departs : programmation, cycle de vie, recherche voyageur |
 | `Booking` | Reservation en ligne, vente au guichet, synchronisation hors ligne, expiration |
 | `Ticketing` | Emission, signature, QR code, controle a l'embarquement |
@@ -114,9 +117,10 @@ ne sont plus modifiables.
 
 | Role | Perimetre |
 |---|---|
-| `platform_admin` | Toutes les compagnies, referentiel des villes, commissions |
+| `platform_admin` | Toutes les compagnies, tous les partenaires, referentiel des villes, commissions |
 | `company_manager` | Sa compagnie : reseau, departs, remboursements, suivi, comptes |
 | `agent` | Guichet, embarquement, consultation des encaissements |
+| `partner_manager` | Son partenaire : fiche, appartements, vehicules de location |
 | `passenger` | Ses propres reservations |
 
 **Celui qui encaisse n'est pas celui qui rembourse** : l'agent n'a pas

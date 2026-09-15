@@ -51,7 +51,14 @@ class RolesAndPermissionsSeeder extends Seeder
         'users.view' => 'Consulter les comptes.',
         'users.manage' => 'Creer, modifier et desactiver des comptes.',
         'audit.view' => 'Consulter le journal d audit.',
-        'platform.manage' => 'Administrer les compagnies partenaires et le referentiel des villes.',
+        'platform.manage' => 'Administrer les compagnies partenaires, les partenaires et le referentiel des villes.',
+
+        'partners.view' => 'Consulter les proprietaires et agences partenaires.',
+        'partners.manage' => 'Modifier la fiche d un partenaire (creation et suppression reservees a platform.manage).',
+        'housing.view' => 'Consulter le catalogue d appartements.',
+        'housing.manage' => 'Creer et administrer les appartements.',
+        'car_rental.view' => 'Consulter le catalogue de vehicules de location.',
+        'car_rental.manage' => 'Creer et administrer les vehicules de location.',
     ];
 
     /**
@@ -90,6 +97,15 @@ class RolesAndPermissionsSeeder extends Seeder
         // sont accessibles parce qu'il en est le titulaire, verification faite
         // par le controleur — pas parce qu'un droit global le lui permettrait.
         'passenger' => [],
+
+        // Gere son partenaire (appartements et/ou vehicules de location) : sa
+        // propre fiche, son catalogue. N'a acces ni au reseau de transport ni
+        // aux comptes de la plateforme — un autre metier, un autre perimetre.
+        'partner_manager' => [
+            'partners.view', 'partners.manage',
+            'housing.view', 'housing.manage',
+            'car_rental.view', 'car_rental.manage',
+        ],
     ];
 
     public function run(): void

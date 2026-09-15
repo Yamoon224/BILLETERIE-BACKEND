@@ -26,6 +26,7 @@ class UpdateUserRequest extends FormRequest
             // modification de nom reinitialiserait le mot de passe.
             'password' => ['nullable', Password::min(8)],
             'company_id' => ['nullable', 'uuid', 'exists:companies,id'],
+            'partner_id' => ['nullable', 'uuid', 'exists:partners,id'],
             'is_active' => ['sometimes', 'boolean'],
             'roles' => ['sometimes', 'array', 'min:1'],
             'roles.*' => ['string', 'exists:roles,name'],

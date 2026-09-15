@@ -6,8 +6,12 @@ use App\Domains\Audit\Contracts\AuditLogRepositoryContract;
 use App\Domains\Audit\Repositories\EloquentAuditLogRepository;
 use App\Domains\Booking\Contracts\BookingRepositoryContract;
 use App\Domains\Booking\Repositories\EloquentBookingRepository;
+use App\Domains\CarRental\Contracts\RentalVehicleRepositoryContract;
+use App\Domains\CarRental\Repositories\EloquentRentalVehicleRepository;
 use App\Domains\Favorites\Contracts\FavoriteRepositoryContract;
 use App\Domains\Favorites\Repositories\EloquentFavoriteRepository;
+use App\Domains\Housing\Contracts\ApartmentRepositoryContract;
+use App\Domains\Housing\Repositories\EloquentApartmentRepository;
 use App\Domains\Network\Contracts\CityRepositoryContract;
 use App\Domains\Network\Contracts\CompanyRepositoryContract;
 use App\Domains\Network\Contracts\ItineraryRepositoryContract;
@@ -20,6 +24,8 @@ use App\Domains\Network\Repositories\EloquentStationRepository;
 use App\Domains\Network\Repositories\EloquentVehicleRepository;
 use App\Domains\Notifications\Contracts\NotificationSenderContract;
 use App\Domains\Notifications\Senders\ArrayNotificationSender;
+use App\Domains\Partners\Contracts\PartnerRepositoryContract;
+use App\Domains\Partners\Repositories\EloquentPartnerRepository;
 use App\Domains\Payments\Contracts\PaymentGatewayContract;
 use App\Domains\Payments\Contracts\PaymentRepositoryContract;
 use App\Domains\Payments\Repositories\EloquentPaymentRepository;
@@ -67,6 +73,11 @@ class DomainServiceProvider extends ServiceProvider
 
         // --- Parcours voyageur -------------------------------------------------
         FavoriteRepositoryContract::class => EloquentFavoriteRepository::class,
+
+        // --- Partenaires : appartements, location auto -----------------------
+        PartnerRepositoryContract::class => EloquentPartnerRepository::class,
+        ApartmentRepositoryContract::class => EloquentApartmentRepository::class,
+        RentalVehicleRepositoryContract::class => EloquentRentalVehicleRepository::class,
 
         // --- Exploitation ----------------------------------------------------
         TripRepositoryContract::class => EloquentTripRepository::class,

@@ -61,6 +61,8 @@ tags:
   - name: Departs
   - name: Referentiel
     description: Compagnies, villes, gares, vehicules, itineraires.
+  - name: Partenaires
+    description: Proprietaires et agences, appartements, vehicules de location.
   - name: Suivi
     description: Tableau de bord et exports.
   - name: Utilisateurs
@@ -320,6 +322,62 @@ paths:
                 properties:
                   data: { $ref: "#/components/schemas/SeatMap" }
         "404": { $ref: "#/components/responses/NotFound" }
+
+  /apartments/search:
+    get:
+      tags: [Recherche]
+      summary: Appartements actifs, filtrables par ville et budget
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/Search"
+        - { name: city_id, in: query, schema: { type: string, format: uuid } }
+        - { name: neighborhood, in: query, schema: { type: string } }
+        - { name: capacity, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: min_price, in: query, schema: { type: integer } }
+        - { name: max_price, in: query, schema: { type: integer } }
+        - { name: is_featured, in: query, schema: { type: boolean } }
+      responses:
+        "200":
+          description: Appartements pagines
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Apartment" }
+
+  /rental-vehicles/search:
+    get:
+      tags: [Recherche]
+      summary: Vehicules de location actifs, filtrables par ville et categorie
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/Search"
+        - { name: city_id, in: query, schema: { type: string, format: uuid } }
+        - { name: category, in: query, schema: { $ref: "#/components/schemas/RentalVehicleCategory" } }
+        - { name: transmission, in: query, schema: { $ref: "#/components/schemas/TransmissionType" } }
+        - { name: seats, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: min_price, in: query, schema: { type: integer } }
+        - { name: max_price, in: query, schema: { type: integer } }
+        - { name: with_driver_available, in: query, schema: { type: boolean } }
+        - { name: is_featured, in: query, schema: { type: boolean } }
+      responses:
+        "200":
+          description: Vehicules de location pagines
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/RentalVehicle" }
 
   /bookings:
     post:
@@ -1100,6 +1158,159 @@ paths:
         "204": { description: Supprime }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  # --- Partenaires : appartements, location auto -----------------------------------------------
+
+  /partners:
+    get:
+      tags: [Partenaires]
+      summary: Partenaires (le sien pour un gestionnaire de partenaire)
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Search"
+        - { name: type, in: query, schema: { $ref: "#/components/schemas/PartnerType" } }
+      responses:
+        "200": { description: Partenaires pagines }
+    post:
+      tags: [Partenaires]
+      summary: Ajoute un partenaire (permission platform.manage)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PartnerInput" }
+      responses:
+        "201": { description: Partenaire cree }
+
+  /partners/{partner}:
+    get:
+      tags: [Partenaires]
+      summary: Detail d'un partenaire
+      parameters:
+        - $ref: "#/components/parameters/PartnerId"
+      responses:
+        "200": { description: Partenaire }
+    patch:
+      tags: [Partenaires]
+      summary: Modifie la fiche d'un partenaire
+      parameters:
+        - $ref: "#/components/parameters/PartnerId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PartnerInput" }
+      responses:
+        "200": { description: Partenaire modifie }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    delete:
+      tags: [Partenaires]
+      summary: Supprime un partenaire sans fiche active (permission platform.manage)
+      parameters:
+        - $ref: "#/components/parameters/PartnerId"
+      responses:
+        "204": { description: Supprime }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /apartments:
+    get:
+      tags: [Partenaires]
+      summary: Appartements du partenaire, tous statuts confondus
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Search"
+        - { name: city_id, in: query, schema: { type: string, format: uuid } }
+        - { name: is_active, in: query, schema: { type: boolean } }
+      responses:
+        "200": { description: Appartements pagines }
+    post:
+      tags: [Partenaires]
+      summary: Ajoute un appartement (rattache au partenaire de l'appelant)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApartmentInput" }
+      responses:
+        "201": { description: Appartement cree }
+
+  /apartments/{apartment}:
+    get:
+      tags: [Partenaires]
+      summary: Detail d'un appartement
+      parameters:
+        - $ref: "#/components/parameters/ApartmentId"
+      responses:
+        "200": { description: Appartement }
+    patch:
+      tags: [Partenaires]
+      summary: Modifie un appartement
+      parameters:
+        - $ref: "#/components/parameters/ApartmentId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApartmentInput" }
+      responses:
+        "200": { description: Appartement modifie }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    delete:
+      tags: [Partenaires]
+      summary: Supprime un appartement
+      parameters:
+        - $ref: "#/components/parameters/ApartmentId"
+      responses:
+        "204": { description: Supprime }
+
+  /rental-vehicles:
+    get:
+      tags: [Partenaires]
+      summary: Vehicules de location du partenaire, tous statuts confondus
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Search"
+        - { name: city_id, in: query, schema: { type: string, format: uuid } }
+        - { name: category, in: query, schema: { $ref: "#/components/schemas/RentalVehicleCategory" } }
+        - { name: is_active, in: query, schema: { type: boolean } }
+      responses:
+        "200": { description: Vehicules de location pagines }
+    post:
+      tags: [Partenaires]
+      summary: Ajoute un vehicule de location (rattache au partenaire de l'appelant)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RentalVehicleInput" }
+      responses:
+        "201": { description: Vehicule de location cree }
+
+  /rental-vehicles/{rentalVehicle}:
+    get:
+      tags: [Partenaires]
+      summary: Detail d'un vehicule de location
+      parameters:
+        - $ref: "#/components/parameters/RentalVehicleId"
+      responses:
+        "200": { description: Vehicule de location }
+    patch:
+      tags: [Partenaires]
+      summary: Modifie un vehicule de location
+      parameters:
+        - $ref: "#/components/parameters/RentalVehicleId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RentalVehicleInput" }
+      responses:
+        "200": { description: Vehicule de location modifie }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    delete:
+      tags: [Partenaires]
+      summary: Supprime un vehicule de location
+      parameters:
+        - $ref: "#/components/parameters/RentalVehicleId"
+      responses:
+        "204": { description: Supprime }
+
   # --- Suivi d'activite -----------------------------------------------------------------------
 
   /dashboard:
@@ -1246,6 +1457,9 @@ components:
     VehicleId: { name: vehicle, in: path, required: true, schema: { type: string, format: uuid } }
     ItineraryId: { name: itinerary, in: path, required: true, schema: { type: string, format: uuid } }
     UserId: { name: user, in: path, required: true, schema: { type: string, format: uuid } }
+    PartnerId: { name: partner, in: path, required: true, schema: { type: string, format: uuid } }
+    ApartmentId: { name: apartment, in: path, required: true, schema: { type: string, format: uuid } }
+    RentalVehicleId: { name: rentalVehicle, in: path, required: true, schema: { type: string, format: uuid } }
 
   responses:
     Unauthenticated:
@@ -1320,6 +1534,18 @@ components:
     VehicleClass:
       type: string
       enum: [standard, comfort, vip, minibus]
+    PartnerType:
+      type: string
+      enum: [housing, car_rental, both]
+    TransmissionType:
+      type: string
+      enum: [manual, automatic]
+    FuelType:
+      type: string
+      enum: [petrol, diesel, hybrid, electric]
+    RentalVehicleCategory:
+      type: string
+      enum: [citadine, berline, suv, minibus, luxe, utilitaire]
 
     AuthenticatedUser:
       type: object
@@ -1329,9 +1555,10 @@ components:
         email: { type: string, format: email }
         phone: { type: string, nullable: true }
         company_id: { type: string, format: uuid, nullable: true }
+        partner_id: { type: string, format: uuid, nullable: true }
         roles:
           type: array
-          items: { type: string, enum: [platform_admin, company_manager, agent, passenger] }
+          items: { type: string, enum: [platform_admin, company_manager, agent, partner_manager, passenger] }
         permissions:
           type: array
           items: { type: string }
@@ -1564,7 +1791,138 @@ components:
         phone: { type: string, nullable: true }
         password: { type: string, nullable: true }
         company_id: { type: string, format: uuid, nullable: true }
+        partner_id: { type: string, format: uuid, nullable: true }
         is_active: { type: boolean }
         roles:
           type: array
           items: { type: string }
+
+    PartnerInput:
+      type: object
+      properties:
+        name: { type: string }
+        type: { $ref: "#/components/schemas/PartnerType" }
+        phone: { type: string, nullable: true }
+        whatsapp: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        city_id: { type: string, format: uuid, nullable: true }
+        logo_path: { type: string, nullable: true }
+        description: { type: string, nullable: true }
+        is_active: { type: boolean }
+
+    Partner:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        type: { $ref: "#/components/schemas/PartnerType" }
+        type_label: { type: string }
+        phone: { type: string, nullable: true }
+        whatsapp: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        logo_path: { type: string, nullable: true }
+        description: { type: string, nullable: true }
+        is_active: { type: boolean }
+        apartments_count: { type: integer, nullable: true }
+        rental_vehicles_count: { type: integer, nullable: true }
+        city: { $ref: "#/components/schemas/City" }
+        city_id: { type: string, format: uuid, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    ApartmentInput:
+      type: object
+      properties:
+        partner_id: { type: string, format: uuid }
+        city_id: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        neighborhood: { type: string, nullable: true }
+        address_line: { type: string, nullable: true }
+        bedrooms: { type: integer, minimum: 0, maximum: 20 }
+        bathrooms: { type: integer, minimum: 0, maximum: 20 }
+        capacity: { type: integer, minimum: 1, maximum: 40 }
+        price_per_night: { type: integer, minimum: 1000, example: 25000 }
+        amenities:
+          type: array
+          items: { type: string, example: piscine }
+        cover_photo_url: { type: string, nullable: true }
+        photo_urls:
+          type: array
+          items: { type: string }
+        is_featured: { type: boolean }
+        is_active: { type: boolean }
+
+    Apartment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        neighborhood: { type: string, nullable: true }
+        address_line: { type: string, nullable: true }
+        bedrooms: { type: integer }
+        bathrooms: { type: integer }
+        capacity: { type: integer }
+        price_per_night: { type: integer }
+        currency: { type: string, example: XOF }
+        amenities:
+          type: array
+          items: { type: string }
+        cover_photo_url: { type: string, nullable: true }
+        photo_urls:
+          type: array
+          items: { type: string }
+        is_featured: { type: boolean }
+        is_active: { type: boolean }
+        city: { $ref: "#/components/schemas/City" }
+        city_id: { type: string, format: uuid }
+        partner_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+
+    RentalVehicleInput:
+      type: object
+      properties:
+        partner_id: { type: string, format: uuid }
+        city_id: { type: string, format: uuid }
+        brand: { type: string }
+        model: { type: string }
+        year: { type: integer, nullable: true, example: 2024 }
+        category: { $ref: "#/components/schemas/RentalVehicleCategory" }
+        transmission: { $ref: "#/components/schemas/TransmissionType" }
+        fuel_type: { $ref: "#/components/schemas/FuelType" }
+        seats: { type: integer, minimum: 1, maximum: 30 }
+        price_per_day: { type: integer, minimum: 1000, example: 35000 }
+        with_driver_available: { type: boolean }
+        plate_number: { type: string, nullable: true }
+        cover_photo_url: { type: string, nullable: true }
+        photo_urls:
+          type: array
+          items: { type: string }
+        is_featured: { type: boolean }
+        is_active: { type: boolean }
+
+    RentalVehicle:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        brand: { type: string }
+        model: { type: string }
+        year: { type: integer, nullable: true }
+        category: { $ref: "#/components/schemas/RentalVehicleCategory" }
+        transmission: { $ref: "#/components/schemas/TransmissionType" }
+        fuel_type: { $ref: "#/components/schemas/FuelType" }
+        seats: { type: integer }
+        price_per_day: { type: integer }
+        currency: { type: string, example: XOF }
+        with_driver_available: { type: boolean }
+        plate_number: { type: string, nullable: true }
+        cover_photo_url: { type: string, nullable: true }
+        photo_urls:
+          type: array
+          items: { type: string }
+        is_featured: { type: boolean }
+        is_active: { type: boolean }
+        city: { $ref: "#/components/schemas/City" }
+        city_id: { type: string, format: uuid }
+        partner_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }

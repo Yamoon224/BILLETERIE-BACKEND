@@ -28,11 +28,13 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string $email
  * @property string|null $phone
  * @property string|null $company_id
+ * @property string|null $partner_id
  * @property bool $is_active
  * @property Carbon|null $last_login_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Company|null $company
+ * @property-read Partner|null $partner
  */
 class User extends Authenticatable
 {
@@ -40,7 +42,7 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, HasRoles, HasUuids, LogsActivity, Notifiable;
 
     /** @var list<string> */
-    protected $fillable = ['name', 'email', 'phone', 'password', 'company_id', 'is_active'];
+    protected $fillable = ['name', 'email', 'phone', 'password', 'company_id', 'partner_id', 'is_active'];
 
     /** @var list<string> */
     protected $hidden = ['password', 'remember_token'];
@@ -60,6 +62,12 @@ class User extends Authenticatable
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    /** @return BelongsTo<Partner, $this> */
+    public function partner(): BelongsTo
+    {
+        return $this->belongsTo(Partner::class);
     }
 
     /** Ventes encaissees par cet utilisateur au guichet.
@@ -86,7 +94,7 @@ class User extends Authenticatable
             // Le mot de passe n'apparait jamais dans le journal, meme haché :
             // un journal d'audit est lu par plus de monde qu'une table de
             // comptes.
-            ->logOnly(['name', 'email', 'phone', 'company_id', 'is_active'])
+            ->logOnly(['name', 'email', 'phone', 'company_id', 'partner_id', 'is_active'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }

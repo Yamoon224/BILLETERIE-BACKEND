@@ -44,7 +44,7 @@ class UserController extends Controller
 
     public function store(StoreUserRequest $request): JsonResponse
     {
-        $data = $request->safe()->only('name', 'email', 'phone', 'password', 'company_id', 'is_active');
+        $data = $request->safe()->only('name', 'email', 'phone', 'password', 'company_id', 'partner_id', 'is_active');
         /** @var list<string> $roles */
         $roles = $request->input('roles');
 
@@ -71,7 +71,7 @@ class UserController extends Controller
     {
         $this->authorizeUser($request, $user);
 
-        $data = $request->safe()->only('name', 'email', 'phone', 'password', 'company_id', 'is_active');
+        $data = $request->safe()->only('name', 'email', 'phone', 'password', 'company_id', 'partner_id', 'is_active');
         /** @var list<string>|null $roles */
         $roles = $request->input('roles');
 

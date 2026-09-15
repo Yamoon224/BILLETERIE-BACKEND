@@ -5,12 +5,15 @@ use App\Domains\Auth\Http\Controllers\AuthController;
 use App\Domains\Booking\Http\Controllers\BookingController;
 use App\Domains\Booking\Http\Controllers\CounterSaleController;
 use App\Domains\Booking\Http\Controllers\OfflineSyncController;
+use App\Domains\CarRental\Http\Controllers\RentalVehicleController;
 use App\Domains\Favorites\Http\Controllers\FavoriteController;
+use App\Domains\Housing\Http\Controllers\ApartmentController;
 use App\Domains\Network\Http\Controllers\CityController;
 use App\Domains\Network\Http\Controllers\CompanyController;
 use App\Domains\Network\Http\Controllers\ItineraryController;
 use App\Domains\Network\Http\Controllers\StationController;
 use App\Domains\Network\Http\Controllers\VehicleController;
+use App\Domains\Partners\Http\Controllers\PartnerController;
 use App\Domains\Payments\Http\Controllers\PaymentController;
 use App\Domains\Payments\Http\Controllers\PaymentWebhookController;
 use App\Domains\Reporting\Http\Controllers\DashboardController;
@@ -69,6 +72,16 @@ Route::get('/trips/search', TripSearchController::class);
 
 // Plan de salle : consulte a l'ecran de choix de place, avant tout compte.
 Route::get('/trips/{trip}/seat-map', [TripController::class, 'seatMap']);
+
+/*
+ * Recherche publique des deux autres piliers (appartements, location auto).
+ *
+ * Meme logique que /trips/search : parcourable sans compte, uniquement les
+ * fiches actives. Aucune reservation en ligne ne s'y adosse encore — voir
+ * README — la recherche ne fait donc que lister et filtrer.
+ */
+Route::get('/apartments/search', [ApartmentController::class, 'search']);
+Route::get('/rental-vehicles/search', [RentalVehicleController::class, 'search']);
 
 /*
  * Reservation et paiement sans compte.
@@ -230,6 +243,43 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/cities', [CityController::class, 'store']);
         Route::patch('/cities/{city}', [CityController::class, 'update']);
         Route::delete('/cities/{city}', [CityController::class, 'destroy']);
+
+        // Onboarding d'un partenaire : comme une compagnie, il ne s'inscrit
+        // pas lui-meme.
+        Route::post('/partners', [PartnerController::class, 'store']);
+        Route::delete('/partners/{partner}', [PartnerController::class, 'destroy']);
+    });
+
+    // --- Partenaires : appartements, location auto ----------------------------
+    Route::middleware('permission:partners.view')->group(function (): void {
+        Route::get('/partners', [PartnerController::class, 'index']);
+        Route::get('/partners/{partner}', [PartnerController::class, 'show']);
+    });
+
+    Route::middleware('permission:partners.manage')->group(function (): void {
+        Route::patch('/partners/{partner}', [PartnerController::class, 'update']);
+    });
+
+    Route::middleware('permission:housing.view')->group(function (): void {
+        Route::get('/apartments', [ApartmentController::class, 'index']);
+        Route::get('/apartments/{apartment}', [ApartmentController::class, 'show']);
+    });
+
+    Route::middleware('permission:housing.manage')->group(function (): void {
+        Route::post('/apartments', [ApartmentController::class, 'store']);
+        Route::patch('/apartments/{apartment}', [ApartmentController::class, 'update']);
+        Route::delete('/apartments/{apartment}', [ApartmentController::class, 'destroy']);
+    });
+
+    Route::middleware('permission:car_rental.view')->group(function (): void {
+        Route::get('/rental-vehicles', [RentalVehicleController::class, 'index']);
+        Route::get('/rental-vehicles/{rentalVehicle}', [RentalVehicleController::class, 'show']);
+    });
+
+    Route::middleware('permission:car_rental.manage')->group(function (): void {
+        Route::post('/rental-vehicles', [RentalVehicleController::class, 'store']);
+        Route::patch('/rental-vehicles/{rentalVehicle}', [RentalVehicleController::class, 'update']);
+        Route::delete('/rental-vehicles/{rentalVehicle}', [RentalVehicleController::class, 'destroy']);
     });
 
     // --- Suivi d'activite --------------------------------------------------------

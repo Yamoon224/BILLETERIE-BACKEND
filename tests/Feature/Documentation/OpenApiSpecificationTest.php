@@ -4,7 +4,11 @@ namespace Tests\Feature\Documentation;
 
 use App\Domains\Booking\Enums\BookingChannel;
 use App\Domains\Booking\Enums\BookingStatus;
+use App\Domains\CarRental\Enums\FuelType;
+use App\Domains\CarRental\Enums\RentalVehicleCategory;
+use App\Domains\CarRental\Enums\TransmissionType;
 use App\Domains\Network\Enums\VehicleClass;
+use App\Domains\Partners\Enums\PartnerType;
 use App\Domains\Payments\Enums\MobileMoneyProvider;
 use App\Domains\Payments\Enums\PaymentMethod;
 use App\Domains\Payments\Enums\PaymentStatus;
@@ -119,6 +123,10 @@ class OpenApiSpecificationTest extends TestCase
         yield 'PaymentStatus' => ['PaymentStatus', PaymentStatus::values()];
         yield 'MobileMoneyProvider' => ['MobileMoneyProvider', MobileMoneyProvider::values()];
         yield 'VehicleClass' => ['VehicleClass', VehicleClass::values()];
+        yield 'PartnerType' => ['PartnerType', PartnerType::values()];
+        yield 'TransmissionType' => ['TransmissionType', TransmissionType::values()];
+        yield 'FuelType' => ['FuelType', FuelType::values()];
+        yield 'RentalVehicleCategory' => ['RentalVehicleCategory', RentalVehicleCategory::values()];
     }
 
     #[Test]

@@ -3,6 +3,7 @@
 namespace Tests;
 
 use App\Models\Company;
+use App\Models\Partner;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
@@ -10,20 +11,21 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 abstract class TestCase extends BaseTestCase
 {
     /**
-     * Cree un compte porteur d'un role, avec sa compagnie si le role en exige
-     * une.
+     * Cree un compte porteur d'un role, avec sa compagnie et/ou son partenaire
+     * si le role en exige un.
      *
      * Les roles viennent du seeder versionne et non d'une matrice inventee
      * pour les tests : un test qui s'appuierait sur des permissions fabriquees
      * a la main passerait avec une matrice de production differente, ce qui
      * est exactement le contraire de ce qu'on lui demande.
      */
-    protected function userWithRole(string $role, ?Company $company = null): User
+    protected function userWithRole(string $role, ?Company $company = null, ?Partner $partner = null): User
     {
         $this->seed(RolesAndPermissionsSeeder::class);
 
         $user = User::factory()->create([
             'company_id' => $company?->id,
+            'partner_id' => $partner?->id,
         ]);
 
         $user->assignRole($role);

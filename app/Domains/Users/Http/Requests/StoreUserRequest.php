@@ -22,8 +22,10 @@ class StoreUserRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:20', Rule::unique('users', 'phone')],
             'password' => ['required', Password::min(8)],
             // Impose par le controleur pour un gestionnaire de compagnie : il
-            // ne cree des comptes que dans la sienne.
+            // ne cree des comptes que dans la sienne. Meme logique pour
+            // `partner_id` cote gestionnaire de partenaire.
             'company_id' => ['nullable', 'uuid', 'exists:companies,id'],
+            'partner_id' => ['nullable', 'uuid', 'exists:partners,id'],
             'is_active' => ['nullable', 'boolean'],
             'roles' => ['required', 'array', 'min:1'],
             'roles.*' => ['string', 'exists:roles,name'],
