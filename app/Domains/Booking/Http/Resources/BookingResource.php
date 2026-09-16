@@ -29,6 +29,8 @@ class BookingResource extends JsonResource
 
             'seats_count' => $this->seats_count,
             'total_amount' => $this->total_amount,
+            'refund_guarantee_fee' => $this->refund_guarantee_fee,
+            'has_refund_guarantee' => $this->refund_guarantee_fee > 0,
             'currency' => $this->currency,
             'commission_amount' => $this->commission_amount,
             'commission_per_mille' => $this->commission_per_mille,

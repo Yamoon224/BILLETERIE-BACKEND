@@ -39,6 +39,9 @@ class StoreBookingRequest extends FormRequest
             'passengers.*.seat_number' => ['required', 'string', 'max:6'],
             'passengers.*.name' => ['required', 'string', 'max:255'],
             'passengers.*.phone' => ['nullable', 'string', 'max:20'],
+
+            // Un choix, pas un montant : voir BookingDraft::$wantsRefundGuarantee.
+            'refund_guarantee' => ['sometimes', 'boolean'],
         ];
     }
 
@@ -55,6 +58,7 @@ class StoreBookingRequest extends FormRequest
             customerEmail: $this->input('customer_email'),
             passengers: array_map(PassengerDraft::fromArray(...), $passengers),
             customerUserId: $customerUserId,
+            wantsRefundGuarantee: $this->boolean('refund_guarantee'),
         );
     }
 }

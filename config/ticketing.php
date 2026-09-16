@@ -99,4 +99,14 @@ return [
      | reference ne se devine pas a partir d'une autre.
      */
     'reference_random_length' => 6,
+
+    /*
+     | Garantie remboursement, optionnelle, proposee au voyageur en ligne.
+     |
+     | Un montant fixe par reservation, pas par place : c'est le voyageur qui
+     | annule, rarement une seule place parmi plusieurs. Le client choisit
+     | l'option ; ce montant, lui, ne vient jamais de la requete - meme regle
+     | que pour le prix du trajet (voir StoreBookingRequest).
+     */
+    'refund_guarantee_fee' => (int) env('TICKETING_REFUND_GUARANTEE_FEE', 300),
 ];

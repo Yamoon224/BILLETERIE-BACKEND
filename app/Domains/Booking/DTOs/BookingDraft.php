@@ -27,6 +27,8 @@ final readonly class BookingDraft
         public ?string $customerUserId = null,
         public ?string $soldByUserId = null,
         public ?string $stationId = null,
+        /** Le voyageur choisit l'option ; son cout se deduit de la configuration, jamais de la requete. */
+        public bool $wantsRefundGuarantee = false,
         /** Identifiant du geste cote tablette : rend la vente idempotente. */
         public ?string $clientReference = null,
         /** Heure reelle de la vente au guichet, si elle precede la synchronisation. */

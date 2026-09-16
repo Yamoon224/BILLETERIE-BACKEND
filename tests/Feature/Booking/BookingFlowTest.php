@@ -105,6 +105,32 @@ class BookingFlowTest extends TestCase
         $this->assertSame(6825, $booking->netAmount());
     }
 
+    /**
+     * La garantie remboursement s'ajoute au prix du trajet mais reste hors
+     * assiette de commission : c'est un frais plateforme, pas une recette de
+     * la compagnie.
+     */
+    #[Test]
+    public function la_garantie_remboursement_s_ajoute_au_total_sans_affecter_la_commission(): void
+    {
+        $response = $this->postJson('/api/bookings', [
+            'trip_id' => $this->trip->id,
+            'customer_name' => 'Awa Kone',
+            'customer_phone' => '+2250700000020',
+            'customer_email' => 'awa@example.test',
+            'passengers' => [['seat_number' => '2B', 'name' => 'Voyageur 2B']],
+            'refund_guarantee' => true,
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.total_amount', 7300)
+            ->assertJsonPath('data.refund_guarantee_fee', 300)
+            ->assertJsonPath('data.has_refund_guarantee', true);
+
+        $booking = Booking::where('customer_phone', '+2250700000020')->firstOrFail();
+        $this->assertSame(175, $booking->commission_amount);
+    }
+
     /** LE garde-fou : une place n'est jamais vendue deux fois. */
     #[Test]
     public function une_place_deja_vendue_ne_peut_pas_etre_revendue(): void

@@ -31,6 +31,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property string|null $station_id
  * @property int $seats_count
  * @property int $total_amount
+ * @property int $refund_guarantee_fee
  * @property string $currency
  * @property int $commission_amount
  * @property int $commission_per_mille
@@ -59,7 +60,7 @@ class Booking extends Model
     protected $fillable = [
         'reference', 'trip_id', 'company_id', 'channel', 'status',
         'customer_name', 'customer_phone', 'customer_email', 'customer_user_id',
-        'sold_by_user_id', 'station_id', 'seats_count', 'total_amount', 'currency',
+        'sold_by_user_id', 'station_id', 'seats_count', 'total_amount', 'refund_guarantee_fee', 'currency',
         'commission_amount', 'commission_per_mille',
         'expires_at', 'confirmed_at', 'cancelled_at', 'cancellation_reason',
         'client_reference', 'sold_offline_at', 'synced_at', 'notes',
@@ -73,6 +74,7 @@ class Booking extends Model
             'status' => BookingStatus::class,
             'seats_count' => 'integer',
             'total_amount' => 'integer',
+            'refund_guarantee_fee' => 'integer',
             'commission_amount' => 'integer',
             'commission_per_mille' => 'integer',
             'expires_at' => 'datetime',

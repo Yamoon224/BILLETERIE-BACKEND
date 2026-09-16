@@ -231,6 +231,7 @@ final class BookingService
     {
         $seats = $draft->seatsCount();
         $total = $trip->price * $seats;
+        $guaranteeFee = $draft->wantsRefundGuarantee ? (int) config('ticketing.refund_guarantee_fee', 0) : 0;
         $perMille = $trip->company->effectiveCommissionPerMille();
         $holdsSeats = $draft->channel->requiresSeatHold();
 
@@ -247,7 +248,11 @@ final class BookingService
             'sold_by_user_id' => $draft->soldByUserId,
             'station_id' => $draft->stationId ?? $trip->departure_station_id,
             'seats_count' => $seats,
-            'total_amount' => $total,
+            // La garantie remboursement s'ajoute au prix du trajet mais reste
+            // hors assiette de commission : c'est un frais plateforme, pas une
+            // recette de la compagnie.
+            'total_amount' => $total + $guaranteeFee,
+            'refund_guarantee_fee' => $guaranteeFee,
             'currency' => (string) config('ticketing.currency'),
             // La commission est figee ici, taux compris : une revision de
             // bareme ne doit pas reecrire ce qui a deja ete facture.
