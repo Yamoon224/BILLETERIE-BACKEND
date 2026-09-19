@@ -280,6 +280,28 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/City" }
 
+  /route-grid/search:
+    get:
+      tags: [Recherche]
+      summary: Grille des trajets pour une liaison pas encore reservable en ligne
+      description: Prix indicatif, duree et horaires habituels, saisis par l'administrateur de la plateforme. Aucune reservation ne s'y adosse.
+      security: []
+      parameters:
+        - { name: origin, in: query, required: true, schema: { type: string, example: abidjan }, description: Slug de la ville de depart }
+        - { name: destination, in: query, required: true, schema: { type: string, example: bouake } }
+      responses:
+        "200":
+          description: Lignes actives de la liaison, de la moins chere a la plus chere
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/RouteGridEntry" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
   /trips/search:
     get:
       tags: [Recherche]
@@ -1010,6 +1032,50 @@ paths:
         "204": { description: Supprimee }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /route-grid:
+    get:
+      tags: [Referentiel]
+      summary: Grille des trajets (liste paginee d'administration, permission platform.manage)
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Search"
+        - { name: is_active, in: query, schema: { type: boolean } }
+      responses:
+        "200": { description: "Lignes de la grille, actives ou non" }
+    post:
+      tags: [Referentiel]
+      summary: Ajoute une ligne a la grille (permission platform.manage)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RouteGridEntryInput" }
+      responses:
+        "201": { description: Ligne creee }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /route-grid/{routeGridEntry}:
+    patch:
+      tags: [Referentiel]
+      summary: Modifie une ligne de la grille (les villes ne changent pas)
+      parameters:
+        - { name: routeGridEntry, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RouteGridEntryInput" }
+      responses:
+        "200": { description: Ligne modifiee }
+        "422": { $ref: "#/components/responses/ValidationError" }
+    delete:
+      tags: [Referentiel]
+      summary: Supprime une ligne de la grille
+      parameters:
+        - { name: routeGridEntry, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204": { description: Supprimee }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /stations:
     get:
       tags: [Referentiel]
@@ -1579,6 +1645,38 @@ components:
         name: { type: string }
         slug: { type: string }
         region: { type: string, nullable: true }
+
+    RouteGridEntry:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        origin_city_id: { type: string, format: uuid }
+        destination_city_id: { type: string, format: uuid }
+        origin_city: { $ref: "#/components/schemas/City" }
+        destination_city: { $ref: "#/components/schemas/City" }
+        company_name: { type: string, nullable: true, description: Compagnie a titre informatif }
+        price: { type: integer, description: Prix indicatif en francs CFA }
+        currency: { type: string, example: XOF }
+        distance_km: { type: integer, nullable: true }
+        duration_minutes: { type: integer, nullable: true }
+        departure_times: { type: array, items: { type: string, example: "06:00" }, description: "Horaires habituels, au format HH:MM" }
+        notes: { type: string, nullable: true }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+
+    RouteGridEntryInput:
+      type: object
+      required: [origin_city_id, destination_city_id, price]
+      properties:
+        origin_city_id: { type: string, format: uuid }
+        destination_city_id: { type: string, format: uuid }
+        company_name: { type: string, nullable: true }
+        price: { type: integer, minimum: 0 }
+        distance_km: { type: integer, nullable: true }
+        duration_minutes: { type: integer, nullable: true }
+        departure_times: { type: array, items: { type: string, example: "06:00" } }
+        notes: { type: string, nullable: true }
+        is_active: { type: boolean }
 
     FavoriteInput:
       type: object

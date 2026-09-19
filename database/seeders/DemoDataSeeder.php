@@ -21,6 +21,7 @@ use App\Models\Company;
 use App\Models\Itinerary;
 use App\Models\Partner;
 use App\Models\RentalVehicle;
+use App\Models\RouteGridEntry;
 use App\Models\Station;
 use App\Models\Trip;
 use App\Models\User;
@@ -78,6 +79,7 @@ class DemoDataSeeder extends Seeder
 
         $this->seedSales();
         $this->seedPartners($cities);
+        $this->seedRouteGrid($cities);
 
         $this->command->info("Compte administrateur : {$admin->email} / password");
     }
@@ -95,6 +97,42 @@ class DemoDataSeeder extends Seeder
         }
 
         return $cities;
+    }
+
+    /**
+     * Grille des trajets : ce que le site affiche, avec « Bientot disponible »,
+     * pour les liaisons autres que la ligne pilote.
+     *
+     * @param  array<string, City>  $cities
+     */
+    private function seedRouteGrid(array $cities): void
+    {
+        /** @var list<array{0: string, 1: string, 2: string, 3: int, 4: int, 5: int, 6: list<string>}> $rows */
+        $rows = [
+            ['abidjan', 'yamoussoukro', 'UTB', 5000, 240, 180, ['06:00', '12:00', '18:00']],
+            ['abidjan', 'bouake', 'UTB', 7000, 350, 300, ['06:00', '13:00']],
+            ['abidjan', 'bouake', 'STC', 7500, 350, 300, ['08:00', '15:00']],
+            ['abidjan', 'san-pedro', 'STC', 8000, 340, 330, ['07:00', '19:00']],
+            ['abidjan', 'daloa', 'UTB', 8500, 380, 360, ['06:30', '14:00']],
+            ['bouake', 'korhogo', 'UTB', 6000, 280, 270, ['07:00', '16:00']],
+        ];
+
+        foreach ($rows as [$origin, $destination, $company, $price, $km, $minutes, $times]) {
+            RouteGridEntry::firstOrCreate(
+                [
+                    'origin_city_id' => $cities[$origin]->id,
+                    'destination_city_id' => $cities[$destination]->id,
+                    'company_name' => $company,
+                ],
+                [
+                    'price' => $price,
+                    'distance_km' => $km,
+                    'duration_minutes' => $minutes,
+                    'departure_times' => $times,
+                    'is_active' => true,
+                ],
+            );
+        }
     }
 
     /** @return list<Company> */

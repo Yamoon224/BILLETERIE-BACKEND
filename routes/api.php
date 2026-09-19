@@ -17,6 +17,7 @@ use App\Domains\Partners\Http\Controllers\PartnerController;
 use App\Domains\Payments\Http\Controllers\PaymentController;
 use App\Domains\Payments\Http\Controllers\PaymentWebhookController;
 use App\Domains\Reporting\Http\Controllers\DashboardController;
+use App\Domains\RouteGrid\Http\Controllers\RouteGridController;
 use App\Domains\Reporting\Http\Controllers\SalesExportController;
 use App\Domains\Scheduling\Http\Controllers\TripController;
 use App\Domains\Scheduling\Http\Controllers\TripSearchController;
@@ -69,6 +70,10 @@ Route::post('/register', [AuthController::class, 'register'])->middleware('throt
 // Referentiel de recherche : villes desservies et departs disponibles.
 Route::get('/cities/options', [CityController::class, 'options']);
 Route::get('/trips/search', TripSearchController::class);
+
+// Grille des trajets : informations affichees pour une liaison pas encore
+// reservable en ligne (voir RouteGridController).
+Route::get('/route-grid/search', [RouteGridController::class, 'search']);
 
 // Plan de salle : consulte a l'ecran de choix de place, avant tout compte.
 Route::get('/trips/{trip}/seat-map', [TripController::class, 'seatMap']);
@@ -243,6 +248,13 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/cities', [CityController::class, 'store']);
         Route::patch('/cities/{city}', [CityController::class, 'update']);
         Route::delete('/cities/{city}', [CityController::class, 'destroy']);
+
+        // Grille des trajets : vitrine editee par l'administrateur, hors
+        // perimetre des compagnies.
+        Route::get('/route-grid', [RouteGridController::class, 'index']);
+        Route::post('/route-grid', [RouteGridController::class, 'store']);
+        Route::patch('/route-grid/{routeGridEntry}', [RouteGridController::class, 'update']);
+        Route::delete('/route-grid/{routeGridEntry}', [RouteGridController::class, 'destroy']);
 
         // Onboarding d'un partenaire : comme une compagnie, il ne s'inscrit
         // pas lui-meme.

@@ -31,6 +31,8 @@ use App\Domains\Payments\Contracts\PaymentRepositoryContract;
 use App\Domains\Payments\Repositories\EloquentPaymentRepository;
 use App\Domains\Reporting\Contracts\SalesReportReaderContract;
 use App\Domains\Reporting\Repositories\EloquentSalesReportReader;
+use App\Domains\RouteGrid\Contracts\RouteGridRepositoryContract;
+use App\Domains\RouteGrid\Repositories\EloquentRouteGridRepository;
 use App\Domains\Scheduling\Contracts\TripLookupContract;
 use App\Domains\Scheduling\Contracts\TripRepositoryContract;
 use App\Domains\Scheduling\Repositories\EloquentTripRepository;
@@ -73,6 +75,7 @@ class DomainServiceProvider extends ServiceProvider
 
         // --- Parcours voyageur -------------------------------------------------
         FavoriteRepositoryContract::class => EloquentFavoriteRepository::class,
+        RouteGridRepositoryContract::class => EloquentRouteGridRepository::class,
 
         // --- Partenaires : appartements, location auto -----------------------
         PartnerRepositoryContract::class => EloquentPartnerRepository::class,
