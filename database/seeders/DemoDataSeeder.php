@@ -53,6 +53,10 @@ class DemoDataSeeder extends Seeder
         ['name' => 'Daloa', 'slug' => 'daloa', 'region' => 'Haut-Sassandra'],
         ['name' => 'Man', 'slug' => 'man', 'region' => 'Montagnes'],
         ['name' => 'Abengourou', 'slug' => 'abengourou', 'region' => 'Comoe'],
+        // Ligne pilote Bonoua - Treichville, preselectionnee dans la recherche
+        // du site.
+        ['name' => 'Bonoua', 'slug' => 'bonoua', 'region' => 'Sud-Comoe'],
+        ['name' => 'Treichville', 'slug' => 'treichville', 'region' => 'Lagunes'],
         // Villes balneaires : hors reseau de bus (aucune liaison pilote ne les
         // dessert), mais destinations des piliers Appartements et Location
         // auto — d'ou leur presence ici malgre l'absence de gare programmee.
@@ -196,6 +200,7 @@ class DemoDataSeeder extends Seeder
             ['abidjan', 'san-pedro', 340, 330, 8000],
             ['bouake', 'korhogo', 280, 270, 6000],
             ['abidjan', 'daloa', 380, 360, 8500],
+            ['bonoua', 'treichville', 55, 70, 1500],
         ];
 
         $tripService = app(TripService::class);
