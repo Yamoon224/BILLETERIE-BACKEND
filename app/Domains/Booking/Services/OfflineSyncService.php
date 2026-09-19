@@ -108,7 +108,7 @@ final class OfflineSyncService
     /** @param  array<string, mixed>  $sale */
     private function draftFrom(array $sale, string $clientReference, ?string $agentUserId, Carbon $soldAt): BookingDraft
     {
-        /** @var list<array{seat_number: string, name: string, phone?: string|null}> $passengers */
+        /** @var list<array{seat_number: string, name: string, phone?: string|null, id_number?: string|null}> $passengers */
         $passengers = $sale['passengers'];
 
         return new BookingDraft(

@@ -39,6 +39,7 @@ class StoreBookingRequest extends FormRequest
             'passengers.*.seat_number' => ['required', 'string', 'max:6'],
             'passengers.*.name' => ['required', 'string', 'max:255'],
             'passengers.*.phone' => ['nullable', 'string', 'max:20'],
+            'passengers.*.id_number' => ['nullable', 'string', 'max:30'],
 
             // Un choix, pas un montant : voir BookingDraft::$wantsRefundGuarantee.
             'refund_guarantee' => ['sometimes', 'boolean'],
@@ -47,7 +48,7 @@ class StoreBookingRequest extends FormRequest
 
     public function draft(?string $customerUserId): BookingDraft
     {
-        /** @var list<array{seat_number: string, name: string, phone?: string|null}> $passengers */
+        /** @var list<array{seat_number: string, name: string, phone?: string|null, id_number?: string|null}> $passengers */
         $passengers = $this->input('passengers');
 
         return new BookingDraft(

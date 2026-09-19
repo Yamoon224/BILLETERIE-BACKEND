@@ -43,6 +43,7 @@ class CounterSaleRequest extends FormRequest
             'passengers.*.seat_number' => ['required', 'string', 'max:6'],
             'passengers.*.name' => ['required', 'string', 'max:255'],
             'passengers.*.phone' => ['nullable', 'string', 'max:20'],
+            'passengers.*.id_number' => ['nullable', 'string', 'max:30'],
 
             'payment_method' => ['required', Rule::in(PaymentMethod::values())],
             'payment_provider' => [
@@ -62,7 +63,7 @@ class CounterSaleRequest extends FormRequest
 
     public function draft(?string $agentUserId): BookingDraft
     {
-        /** @var list<array{seat_number: string, name: string, phone?: string|null}> $passengers */
+        /** @var list<array{seat_number: string, name: string, phone?: string|null, id_number?: string|null}> $passengers */
         $passengers = $this->input('passengers');
 
         return new BookingDraft(

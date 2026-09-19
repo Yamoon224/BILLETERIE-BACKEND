@@ -131,6 +131,44 @@ class BookingFlowTest extends TestCase
         $this->assertSame(175, $booking->commission_amount);
     }
 
+    /**
+     * La piece d'identite est facultative et se conserve sur le billet. Elle
+     * ne sort jamais de l'API : le lien de reservation recu par SMS suffit a
+     * lire un billet, il ne doit pas suffire a lire un numero de CNI.
+     */
+    #[Test]
+    public function la_piece_d_identite_est_conservee_sur_le_billet_sans_etre_exposee(): void
+    {
+        $response = $this->postJson('/api/bookings', [
+            'trip_id' => $this->trip->id,
+            'customer_name' => 'Aicha Kouassi',
+            'customer_phone' => '+2250700000030',
+            'passengers' => [
+                ['seat_number' => '4A', 'name' => 'Aicha Kouassi', 'id_number' => ' CI0012345678 '],
+                ['seat_number' => '4B', 'name' => 'Yao Kouassi', 'id_number' => ''],
+            ],
+        ]);
+
+        $response->assertCreated();
+
+        $this->assertSame('CI0012345678', Ticket::where('seat_number', '4A')->firstOrFail()->passenger_id_number);
+        $this->assertNull(Ticket::where('seat_number', '4B')->firstOrFail()->passenger_id_number);
+
+        $this->assertStringNotContainsString('CI0012345678', $response->getContent());
+        $this->assertStringNotContainsString('id_number', $response->getContent());
+    }
+
+    #[Test]
+    public function une_piece_d_identite_trop_longue_est_refusee(): void
+    {
+        $this->postJson('/api/bookings', [
+            'trip_id' => $this->trip->id,
+            'customer_name' => 'Awa Kone',
+            'customer_phone' => '+2250700000031',
+            'passengers' => [['seat_number' => '4C', 'name' => 'Awa Kone', 'id_number' => str_repeat('9', 31)]],
+        ])->assertUnprocessable()->assertJsonValidationErrors(['passengers.0.id_number']);
+    }
+
     /** LE garde-fou : une place n'est jamais vendue deux fois. */
     #[Test]
     public function une_place_deja_vendue_ne_peut_pas_etre_revendue(): void

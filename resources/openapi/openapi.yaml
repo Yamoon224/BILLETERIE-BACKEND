@@ -1650,6 +1650,7 @@ components:
               seat_number: { type: string, example: 3B }
               name: { type: string }
               phone: { type: string, nullable: true }
+              id_number: { type: string, nullable: true, maxLength: 30, description: "Piece d'identite (facultative). Conservee sur le billet, jamais renvoyee par l'API." }
 
     Ticket:
       type: object

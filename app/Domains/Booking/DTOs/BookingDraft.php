@@ -48,7 +48,7 @@ final readonly class BookingDraft
     }
 
     /**
-     * @return list<array{seat_number: string, passenger_name: string, passenger_phone: string|null}>
+     * @return list<array{seat_number: string, passenger_name: string, passenger_phone: string|null, passenger_id_number: string|null}>
      */
     public function passengersForIssuance(): array
     {
@@ -56,6 +56,7 @@ final readonly class BookingDraft
             'seat_number' => $passenger->seatNumber,
             'passenger_name' => $passenger->name,
             'passenger_phone' => $passenger->phone,
+            'passenger_id_number' => $passenger->idNumber,
         ], $this->passengers);
     }
 }

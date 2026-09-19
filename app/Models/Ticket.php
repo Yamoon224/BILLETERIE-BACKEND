@@ -23,6 +23,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property string|null $released_seat_number
  * @property string $passenger_name
  * @property string|null $passenger_phone
+ * @property string|null $passenger_id_number
  * @property TicketStatus $status
  * @property string $signature
  * @property int $key_version
@@ -43,7 +44,7 @@ class Ticket extends Model
     /** @var list<string> */
     protected $fillable = [
         'booking_id', 'trip_id', 'code', 'seat_number', 'released_seat_number',
-        'passenger_name', 'passenger_phone', 'status', 'signature', 'key_version',
+        'passenger_name', 'passenger_phone', 'passenger_id_number', 'status', 'signature', 'key_version',
         'scanned_at', 'scanned_by_user_id', 'scanned_station_id', 'scan_client_reference',
     ];
 

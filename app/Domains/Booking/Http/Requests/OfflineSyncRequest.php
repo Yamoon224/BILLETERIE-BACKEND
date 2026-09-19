@@ -49,6 +49,7 @@ class OfflineSyncRequest extends FormRequest
             'sales.*.passengers.*.seat_number' => ['required', 'string', 'max:6'],
             'sales.*.passengers.*.name' => ['required', 'string', 'max:255'],
             'sales.*.passengers.*.phone' => ['nullable', 'string', 'max:20'],
+            'sales.*.passengers.*.id_number' => ['nullable', 'string', 'max:30'],
 
             'sales.*.payment_method' => ['required', Rule::in(PaymentMethod::values())],
             'sales.*.payer_msisdn' => ['nullable', 'string', 'max:20'],

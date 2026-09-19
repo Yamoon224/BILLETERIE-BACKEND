@@ -30,7 +30,7 @@ final class TicketIssuanceService
     ) {}
 
     /**
-     * @param  list<array{seat_number: string, passenger_name: string, passenger_phone?: string|null}>  $passengers
+     * @param  list<array{seat_number: string, passenger_name: string, passenger_phone?: string|null, passenger_id_number?: string|null}>  $passengers
      * @return list<Ticket>
      */
     public function issueForBooking(Booking $booking, Trip $trip, array $passengers): array
@@ -45,7 +45,7 @@ final class TicketIssuanceService
     }
 
     /**
-     * @param  array{seat_number: string, passenger_name: string, passenger_phone?: string|null}  $passenger
+     * @param  array{seat_number: string, passenger_name: string, passenger_phone?: string|null, passenger_id_number?: string|null}  $passenger
      */
     private function issueOne(Booking $booking, Trip $trip, array $passenger): Ticket
     {
@@ -69,6 +69,7 @@ final class TicketIssuanceService
             'seat_number' => $seat,
             'passenger_name' => $passenger['passenger_name'],
             'passenger_phone' => $passenger['passenger_phone'] ?? $booking->customer_phone,
+            'passenger_id_number' => $passenger['passenger_id_number'] ?? null,
             'status' => TicketStatus::Issued,
             'signature' => $this->signer->sign($payload),
             'key_version' => $this->signer->currentKeyVersion(),
