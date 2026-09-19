@@ -238,7 +238,9 @@ class DemoDataSeeder extends Seeder
             ['abidjan', 'san-pedro', 340, 330, 8000],
             ['bouake', 'korhogo', 280, 270, 6000],
             ['abidjan', 'daloa', 380, 360, 8500],
+            // Ligne pilote, dans les deux sens : seule liaison reservable en ligne.
             ['bonoua', 'treichville', 55, 70, 1500],
+            ['treichville', 'bonoua', 55, 70, 1500],
         ];
 
         $tripService = app(TripService::class);
