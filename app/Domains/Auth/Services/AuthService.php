@@ -33,8 +33,8 @@ final class AuthService
      */
     public function attempt(array $credentials, string $deviceName = 'api'): array
     {
-        $identifier = trim($credentials['login'] ?? '');
-        $password = $credentials['password'] ?? '';
+        $identifier = trim($credentials['login']);
+        $password = $credentials['password'];
         $user = $this->resolveUser($identifier);
 
         if ($user === null || ! Hash::check($password, $user->password)) {
