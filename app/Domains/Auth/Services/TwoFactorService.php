@@ -46,7 +46,7 @@ final class TwoFactorService
     {
         if ($user->two_factor_secret === null) {
             throw ValidationException::withMessages([
-                'code' => ["Aucune inscription 2FA en cours. Recommencez depuis le debut."],
+                'code' => ['Aucune inscription 2FA en cours. Recommencez depuis le debut.'],
             ]);
         }
 

@@ -38,7 +38,7 @@ class TwoFactorTest extends TestCase
             ->assertStatus(422)
             ->assertJsonValidationErrors('code');
 
-        $validCode = (new Google2FA())->getCurrentOtp($secret);
+        $validCode = (new Google2FA)->getCurrentOtp($secret);
         $this->actingAs($admin)->postJson('/api/me/two-factor/confirm', ['code' => $validCode])->assertOk();
 
         $this->assertNotNull($admin->refresh()->two_factor_confirmed_at);
@@ -48,7 +48,7 @@ class TwoFactorTest extends TestCase
     public function la_connexion_exige_le_code_une_fois_la_2fa_confirmee(): void
     {
         $admin = $this->userWithRole('platform_admin');
-        $google2fa = new Google2FA();
+        $google2fa = new Google2FA;
         $secret = $google2fa->generateSecretKey();
 
         $admin->forceFill(['two_factor_secret' => $secret, 'two_factor_confirmed_at' => now()])->save();
@@ -78,7 +78,7 @@ class TwoFactorTest extends TestCase
     {
         $admin = $this->userWithRole('platform_admin');
         $admin->forceFill([
-            'two_factor_secret' => (new Google2FA())->generateSecretKey(),
+            'two_factor_secret' => (new Google2FA)->generateSecretKey(),
             'two_factor_confirmed_at' => now(),
         ])->save();
 
