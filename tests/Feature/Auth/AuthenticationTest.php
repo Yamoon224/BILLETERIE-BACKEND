@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\Company;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -40,6 +41,22 @@ class AuthenticationTest extends TestCase
         $this->postJson('/api/login', ['login' => '07 00 00 00 99', 'password' => 'password'])
             ->assertOk()
             ->assertJsonPath('data.user.id', $user->id);
+    }
+
+    /**
+     * Le code d'une compagnie ouvre la session de son gestionnaire : plus
+     * facile a partager en interne qu'une adresse e-mail individuelle, et
+     * insensible a la casse pour tolerer une saisie au clavier hative.
+     */
+    #[Test]
+    public function le_code_d_une_compagnie_connecte_son_gestionnaire(): void
+    {
+        $company = Company::factory()->create(['code' => 'STC']);
+        $manager = $this->userWithRole('company_manager', $company);
+
+        $this->postJson('/api/login', ['login' => 'stc', 'password' => 'password'])
+            ->assertOk()
+            ->assertJsonPath('data.user.id', $manager->id);
     }
 
     /**

@@ -96,8 +96,9 @@ paths:
               type: object
               required: [login, password]
               properties:
-                login: { type: string, description: "Adresse e-mail ou numero de telephone", example: "+2250700000001" }
+                login: { type: string, description: "Adresse e-mail, numero de telephone, ou code d'une compagnie (connecte alors son gestionnaire)", example: "+2250700000001" }
                 password: { type: string }
+                code: { type: string, description: "Code de verification (TOTP), requis uniquement si le compte a confirme une inscription 2FA", example: "123456" }
                 device_name: { type: string, example: tablette-guichet-01 }
       responses:
         "200":
@@ -197,6 +198,73 @@ paths:
       summary: Revoque tous les jetons sauf le courant (tablette perdue)
       responses:
         "200": { description: Nombre de jetons revoques }
+
+  /me/two-factor:
+    get:
+      tags: [Compte]
+      summary: "Etat de la 2FA du compte (reserve aux administrateurs de plateforme)"
+      responses:
+        "200":
+          description: Etat de l'inscription
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, properties: { enabled: { type: boolean } } }
+        "403": { description: "Reserve au role platform_admin" }
+    post:
+      tags: [Compte]
+      summary: "Demarre (ou redemarre) une inscription 2FA (TOTP)"
+      description: Sans effet sur la connexion tant que le premier code n'a pas ete confirme via POST /me/two-factor/confirm.
+      responses:
+        "200":
+          description: Secret et URI de provisionnement pour une application d'authentification
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      secret: { type: string, example: "TZ7FUVJJYSA2F4UM" }
+                      otpauth_url: { type: string, example: "otpauth://totp/Kaara:admin@kaara.ci?secret=TZ7FUVJJYSA2F4UM&issuer=Kaara" }
+        "403": { description: "Reserve au role platform_admin" }
+    delete:
+      tags: [Compte]
+      summary: Desactive la 2FA (mot de passe actuel exige)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string }
+      responses:
+        "200": { description: 2FA desactivee }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "403": { description: "Reserve au role platform_admin" }
+
+  /me/two-factor/confirm:
+    post:
+      tags: [Compte]
+      summary: Confirme l'inscription avec un premier code valide
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string, example: "123456" }
+      responses:
+        "200": { description: 2FA activee }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "403": { description: "Reserve au role platform_admin" }
 
   /me/bookings:
     get:
