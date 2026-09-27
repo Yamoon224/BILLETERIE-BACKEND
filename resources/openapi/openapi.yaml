@@ -94,9 +94,9 @@ paths:
           application/json:
             schema:
               type: object
-              required: [email, password]
+              required: [login, password]
               properties:
-                email: { type: string, format: email }
+                login: { type: string, description: "Adresse e-mail ou numero de telephone", example: "+2250700000001" }
                 password: { type: string }
                 device_name: { type: string, example: tablette-guichet-01 }
       responses:

@@ -17,7 +17,7 @@ class AuthController extends Controller
     public function login(LoginRequest $request): JsonResponse
     {
         $result = $this->authService->attempt(
-            $request->only('email', 'password'),
+            $request->only('login', 'password'),
             $request->input('device_name', 'api'),
         );
 

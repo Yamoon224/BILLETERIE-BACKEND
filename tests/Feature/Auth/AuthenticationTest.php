@@ -18,7 +18,7 @@ class AuthenticationTest extends TestCase
         $agent = $this->userWithRole('agent');
 
         $response = $this->postJson('/api/login', [
-            'email' => $agent->email,
+            'login' => $agent->email,
             'password' => 'password',
             'device_name' => 'tablette-guichet-01',
         ]);
@@ -31,6 +31,17 @@ class AuthenticationTest extends TestCase
         $this->assertNotNull($agent->refresh()->last_login_at);
     }
 
+    /** Le meme compte se connecte aussi bien par e-mail que par telephone. */
+    #[Test]
+    public function un_utilisateur_se_connecte_avec_son_numero_de_telephone(): void
+    {
+        $user = User::factory()->create(['phone' => '+2250700000099']);
+
+        $this->postJson('/api/login', ['login' => '07 00 00 00 99', 'password' => 'password'])
+            ->assertOk()
+            ->assertJsonPath('data.user.id', $user->id);
+    }
+
     /**
      * Meme message que le compte existe ou non : distinguer les deux cas
      * transformerait le formulaire en oracle d'enumeration de comptes.
@@ -40,11 +51,11 @@ class AuthenticationTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $wrongPassword = $this->postJson('/api/login', ['email' => $user->email, 'password' => 'faux']);
-        $unknownEmail = $this->postJson('/api/login', ['email' => 'inconnu@example.test', 'password' => 'faux']);
+        $wrongPassword = $this->postJson('/api/login', ['login' => $user->email, 'password' => 'faux']);
+        $unknownEmail = $this->postJson('/api/login', ['login' => 'inconnu@example.test', 'password' => 'faux']);
 
         $wrongPassword->assertStatus(422)->assertJsonPath('error_code', 'validation_failed');
-        $this->assertSame($wrongPassword->json('errors.email'), $unknownEmail->json('errors.email'));
+        $this->assertSame($wrongPassword->json('errors.login'), $unknownEmail->json('errors.login'));
     }
 
     /** Un agent desactive garde son historique mais perd l'acces. */
@@ -53,7 +64,7 @@ class AuthenticationTest extends TestCase
     {
         $user = User::factory()->inactive()->create();
 
-        $this->postJson('/api/login', ['email' => $user->email, 'password' => 'password'])
+        $this->postJson('/api/login', ['login' => $user->email, 'password' => 'password'])
             ->assertStatus(422);
     }
 

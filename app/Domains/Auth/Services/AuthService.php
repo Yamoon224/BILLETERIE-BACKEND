@@ -3,6 +3,7 @@
 namespace App\Domains\Auth\Services;
 
 use App\Models\User;
+use App\Support\PhoneNumber;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -22,30 +23,40 @@ use Illuminate\Validation\ValidationException;
 final class AuthService
 {
     /**
-     * @param  array{email: string, password: string}  $credentials
+     * @param  array{login: string, password: string}  $credentials
      * @return array{user: User, token: string}
      *
      * @throws ValidationException
      */
     public function attempt(array $credentials, string $deviceName = 'api'): array
     {
-        if (! Auth::validate($credentials)) {
+        $identifier = trim($credentials['login'] ?? '');
+        $password = $credentials['password'] ?? '';
+
+        // L'identifiant est une adresse e-mail ou un numero de telephone :
+        // sa forme decide seule contre quelle colonne on authentifie, sans
+        // demander a l'utilisateur de preciser lequel des deux il tape.
+        $isEmail = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false;
+        $field = $isEmail ? 'email' : 'phone';
+        $value = $isEmail ? mb_strtolower($identifier) : PhoneNumber::normalize($identifier);
+
+        if ($value === null || ! Auth::validate([$field => $value, 'password' => $password])) {
             // Message volontairement identique que le compte existe ou non :
             // distinguer les deux cas transformerait le formulaire en oracle
             // d'enumeration de comptes.
             throw ValidationException::withMessages([
-                'email' => ['Identifiants invalides.'],
+                'login' => ['Identifiants invalides.'],
             ]);
         }
 
         /** @var User $user */
-        $user = User::where('email', $credentials['email'])->firstOrFail();
+        $user = User::where($field, $value)->firstOrFail();
 
         // Un compte desactive ne peut plus se connecter, mais garde son
         // historique de ventes : on ne supprime pas un agent qui a encaisse.
         if (! $user->is_active) {
             throw ValidationException::withMessages([
-                'email' => ['Ce compte est desactive. Contactez votre administrateur.'],
+                'login' => ['Ce compte est desactive. Contactez votre administrateur.'],
             ]);
         }
 
