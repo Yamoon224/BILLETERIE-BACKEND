@@ -15,10 +15,13 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // Adresse e-mail ou numero de telephone : la connexion accepte
-            // les deux, un voyageur n'ayant souvent que le second.
+            // Adresse e-mail, numero de telephone, ou code compagnie pour un
+            // gestionnaire : la connexion accepte les trois formes.
             'login' => ['required', 'string'],
             'password' => ['required', 'string'],
+            // Fourni uniquement par les comptes ayant confirme une inscription
+            // 2FA ; absent, il n'est meme pas regarde pour les autres.
+            'code' => ['nullable', 'string', 'max:20'],
             // Nomme l'appareil porteur du jeton : « guichet-gare-adjame »,
             // « tablette-controle-02 ». Sur une flotte de tablettes, c'est ce
             // qui permet de revoquer un appareil perdu sans deconnecter les

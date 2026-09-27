@@ -30,6 +30,8 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string|null $company_id
  * @property string|null $partner_id
  * @property bool $is_active
+ * @property string|null $two_factor_secret
+ * @property Carbon|null $two_factor_confirmed_at
  * @property Carbon|null $last_login_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -45,7 +47,7 @@ class User extends Authenticatable
     protected $fillable = ['name', 'email', 'phone', 'password', 'company_id', 'partner_id', 'is_active'];
 
     /** @var list<string> */
-    protected $hidden = ['password', 'remember_token'];
+    protected $hidden = ['password', 'remember_token', 'two_factor_secret'];
 
     /** @return array<string, string> */
     protected function casts(): array
@@ -53,7 +55,11 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
+            'two_factor_confirmed_at' => 'datetime',
             'password' => 'hashed',
+            // Chiffre au repos : une fuite de base ne suffit pas a rejouer les
+            // codes d'un compte admin, contrairement a un secret stocke en clair.
+            'two_factor_secret' => 'encrypted',
             'is_active' => 'boolean',
         ];
     }

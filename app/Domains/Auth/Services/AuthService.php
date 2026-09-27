@@ -2,10 +2,11 @@
 
 namespace App\Domains\Auth\Services;
 
+use App\Models\Company;
 use App\Models\User;
 use App\Support\PhoneNumber;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -22,8 +23,10 @@ use Illuminate\Validation\ValidationException;
  */
 final class AuthService
 {
+    public function __construct(private readonly TwoFactorService $twoFactor) {}
+
     /**
-     * @param  array{login: string, password: string}  $credentials
+     * @param  array{login: string, password: string, code?: string|null}  $credentials
      * @return array{user: User, token: string}
      *
      * @throws ValidationException
@@ -32,15 +35,9 @@ final class AuthService
     {
         $identifier = trim($credentials['login'] ?? '');
         $password = $credentials['password'] ?? '';
+        $user = $this->resolveUser($identifier);
 
-        // L'identifiant est une adresse e-mail ou un numero de telephone :
-        // sa forme decide seule contre quelle colonne on authentifie, sans
-        // demander a l'utilisateur de preciser lequel des deux il tape.
-        $isEmail = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false;
-        $field = $isEmail ? 'email' : 'phone';
-        $value = $isEmail ? mb_strtolower($identifier) : PhoneNumber::normalize($identifier);
-
-        if ($value === null || ! Auth::validate([$field => $value, 'password' => $password])) {
+        if ($user === null || ! Hash::check($password, $user->password)) {
             // Message volontairement identique que le compte existe ou non :
             // distinguer les deux cas transformerait le formulaire en oracle
             // d'enumeration de comptes.
@@ -48,9 +45,6 @@ final class AuthService
                 'login' => ['Identifiants invalides.'],
             ]);
         }
-
-        /** @var User $user */
-        $user = User::where($field, $value)->firstOrFail();
 
         // Un compte desactive ne peut plus se connecter, mais garde son
         // historique de ventes : on ne supprime pas un agent qui a encaisse.
@@ -60,12 +54,66 @@ final class AuthService
             ]);
         }
 
+        // Seuls les comptes ayant confirme une inscription 2FA en exigent un
+        // code : l'exiger d'office aurait verrouille tout compte admin cree
+        // avant l'existence de cette fonctionnalite.
+        if ($this->twoFactor->isEnabled($user) && ! $this->twoFactor->verifyLoginCode($user, $credentials['code'] ?? null)) {
+            throw ValidationException::withMessages([
+                'code' => ['Code de verification invalide.'],
+            ]);
+        }
+
         $user->forceFill(['last_login_at' => Carbon::now()])->save();
 
         return [
             'user' => $user,
             'token' => $user->createToken($deviceName)->plainTextToken,
         ];
+    }
+
+    /**
+     * Retrouve le compte vise par l'identifiant saisi : une adresse e-mail,
+     * un numero de telephone, ou - pour le gestionnaire d'une compagnie de
+     * transport - le code de sa compagnie (« STC », « UTB », ...), plus facile
+     * a partager en interne qu'une adresse e-mail individuelle.
+     */
+    private function resolveUser(string $identifier): ?User
+    {
+        if ($identifier === '') {
+            return null;
+        }
+
+        if (filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false) {
+            return User::where('email', mb_strtolower($identifier))->first();
+        }
+
+        $byCompanyCode = $this->resolveCompanyManager($identifier);
+        if ($byCompanyCode !== null) {
+            return $byCompanyCode;
+        }
+
+        $phone = PhoneNumber::normalize($identifier);
+
+        return $phone !== null ? User::where('phone', $phone)->first() : null;
+    }
+
+    /**
+     * Le code d'une compagnie identifie l'entreprise, pas un individu : il
+     * ouvre donc la session de son gestionnaire, le seul compte qui en
+     * represente l'identite aupres de la plateforme - un agent de vente garde
+     * son adresse e-mail ou son telephone personnel pour se connecter.
+     */
+    private function resolveCompanyManager(string $code): ?User
+    {
+        $company = Company::whereRaw('UPPER(code) = ?', [mb_strtoupper($code)])->first();
+        if ($company === null) {
+            return null;
+        }
+
+        return User::where('company_id', $company->id)
+            ->whereHas('roles', fn ($query) => $query->where('name', 'company_manager'))
+            ->oldest()
+            ->first();
     }
 
     /**

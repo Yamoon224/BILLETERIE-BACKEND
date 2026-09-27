@@ -2,6 +2,7 @@
 
 use App\Domains\Audit\Http\Controllers\AuditLogController;
 use App\Domains\Auth\Http\Controllers\AuthController;
+use App\Domains\Auth\Http\Controllers\TwoFactorController;
 use App\Domains\Booking\Http\Controllers\BookingController;
 use App\Domains\Booking\Http\Controllers\CounterSaleController;
 use App\Domains\Booking\Http\Controllers\OfflineSyncController;
@@ -131,6 +132,16 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::put('/me/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:6,1');
     Route::delete('/me/tokens', [ProfileController::class, 'revokeOtherTokens']);
     Route::get('/me/bookings', [BookingController::class, 'mine']);
+
+    // --- Verification en deux etapes --------------------------------------
+    // Reservee aux administrateurs de plateforme : c'est le seul role dont un
+    // vol de mot de passe ouvre un acces a l'ensemble du systeme.
+    Route::middleware('role:platform_admin')->group(function (): void {
+        Route::get('/me/two-factor', [TwoFactorController::class, 'status']);
+        Route::post('/me/two-factor', [TwoFactorController::class, 'enable']);
+        Route::post('/me/two-factor/confirm', [TwoFactorController::class, 'confirm']);
+        Route::delete('/me/two-factor', [TwoFactorController::class, 'disable']);
+    });
 
     // --- Trajets favoris -------------------------------------------------------
     // Aucune permission dediee : un voyageur ne gere que ses propres favoris,
