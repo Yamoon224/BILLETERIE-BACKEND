@@ -111,6 +111,31 @@ paths:
         "422": { $ref: "#/components/responses/ValidationError" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
 
+  /login/pin:
+    post:
+      tags: [Authentification]
+      summary: Connexion rapide au guichet par code PIN (comptes agents uniquement)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [login, pin]
+              properties:
+                login: { type: string, description: "Adresse e-mail ou numero de telephone de l'agent", example: "+2250700000001" }
+                pin: { type: string, description: "Code a quatre chiffres", example: "1234" }
+                device_name: { type: string, example: tablette-guichet-01 }
+      responses:
+        "200":
+          description: Jeton et compte
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionEnvelope" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
   /register:
     post:
       tags: [Authentification]
@@ -281,6 +306,29 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/BookingPage" }
+
+  /me/cashier-summary:
+    get:
+      tags: [Guichet]
+      summary: Cloture de caisse de l'agent connecte (permission sales.create)
+      parameters:
+        - { name: date, in: query, schema: { type: string, format: date }, description: "Par defaut, aujourd'hui" }
+      responses:
+        "200":
+          description: Ventes et encaissements du jour, par moyen de paiement
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      date: { type: string, format: date }
+                      tickets_sold: { type: integer }
+                      cash_amount: { type: integer }
+                      mobile_money_amount: { type: integer }
+                      total_amount: { type: integer }
 
   /me/favorites:
     get:
