@@ -7,8 +7,11 @@ use App\Domains\Notifications\DTOs\NotificationMessage;
 use App\Domains\Notifications\Enums\NotificationChannel;
 use App\Domains\Notifications\Enums\NotificationStatus;
 use App\Domains\Shared\Support\Money;
+use App\Domains\Sms\Contracts\SimCardRepositoryContract;
+use App\Domains\Sms\Enums\SimOperator;
 use App\Models\Booking;
 use App\Models\NotificationDispatch;
+use App\Models\SimCard;
 use Illuminate\Support\Carbon;
 use Throwable;
 
@@ -33,7 +36,10 @@ use Throwable;
  */
 final class TicketNotifier
 {
-    public function __construct(private readonly NotificationSenderContract $sender) {}
+    public function __construct(
+        private readonly NotificationSenderContract $sender,
+        private readonly SimCardRepositoryContract $simCards,
+    ) {}
 
     /**
      * Notifie le voyageur de sa reservation confirmee.
@@ -58,6 +64,7 @@ final class TicketNotifier
     {
         $dispatch = NotificationDispatch::create([
             'booking_id' => $booking->id,
+            'sim_card_id' => $this->resolveSimCard($channel, $booking->customer_phone)?->id,
             'channel' => $channel,
             'recipient' => $booking->customer_phone,
             'template' => 'booking_confirmed',
@@ -95,6 +102,22 @@ final class TicketNotifier
         }
 
         return $dispatch;
+    }
+
+    /**
+     * Carte SIM du SMS Box porteuse de l'envoi, resolue depuis l'operateur du
+     * destinataire. `null` pour WhatsApp, qui ne transite par aucune carte, et
+     * pour un numero dont l'operateur ne se laisse pas deduire du prefixe.
+     */
+    private function resolveSimCard(NotificationChannel $channel, string $recipient): ?SimCard
+    {
+        if ($channel !== NotificationChannel::Sms) {
+            return null;
+        }
+
+        $operator = SimOperator::fromPhoneNumber($recipient);
+
+        return $operator === null ? null : $this->simCards->findActiveByOperator($operator);
     }
 
     private function confirmationBody(Booking $booking): string

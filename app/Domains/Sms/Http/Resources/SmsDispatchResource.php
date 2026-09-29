@@ -15,7 +15,11 @@ class SmsDispatchResource extends JsonResource
         return [
             'id' => $this->id,
             'recipient' => $this->recipient,
-            'reference' => $this->template,
+            // La reservation notifiee, pas le nom du modele de message : le
+            // modele est le meme pour tous les envois ('booking_confirmed'),
+            // ce n'est donc pas ce qui distingue une ligne d'une autre a
+            // l'ecran.
+            'reference' => $this->payload['booking_reference'] ?? $this->template,
             'status' => $this->status->value,
             'status_label' => $this->status->label(),
             'attempts' => $this->attempts,
