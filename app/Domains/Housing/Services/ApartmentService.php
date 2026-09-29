@@ -3,6 +3,7 @@
 namespace App\Domains\Housing\Services;
 
 use App\Domains\Housing\Contracts\ApartmentRepositoryContract;
+use App\Domains\Shared\Enums\ListingStatus;
 use App\Models\Apartment;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
@@ -56,5 +57,11 @@ final class ApartmentService
     public function delete(Apartment $apartment): void
     {
         $this->apartments->delete($apartment);
+    }
+
+    /** Decision de l'administrateur de plateforme sur une fiche en attente. */
+    public function changeStatus(Apartment $apartment, ListingStatus $status): Apartment
+    {
+        return $this->apartments->update($apartment, ['status' => $status]);
     }
 }

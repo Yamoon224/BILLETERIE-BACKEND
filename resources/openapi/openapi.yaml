@@ -67,6 +67,8 @@ tags:
     description: Tableau de bord et exports.
   - name: Utilisateurs
   - name: Audit
+  - name: Administration
+    description: "Console de l'administrateur de plateforme : SMS Box, offres et finances."
 
 security:
   - bearerAuth: []
@@ -1052,6 +1054,24 @@ paths:
         "204": { description: Supprimee }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /companies/{company}/status:
+    post:
+      tags: [Administration]
+      summary: Valide ou rejette une compagnie en attente (permission platform.manage)
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [active, rejected] }
+      responses:
+        "200": { description: Statut modifie }
+
   /cities:
     get:
       tags: [Referentiel]
@@ -1394,6 +1414,24 @@ paths:
       responses:
         "204": { description: Supprime }
 
+  /apartments/{apartment}/status:
+    post:
+      tags: [Administration]
+      summary: Valide ou rejette un appartement en attente (permission platform.manage)
+      parameters:
+        - $ref: "#/components/parameters/ApartmentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [active, rejected] }
+      responses:
+        "200": { description: Statut modifie }
+
   /rental-vehicles:
     get:
       tags: [Partenaires]
@@ -1444,6 +1482,119 @@ paths:
         - $ref: "#/components/parameters/RentalVehicleId"
       responses:
         "204": { description: Supprime }
+
+  /rental-vehicles/{rentalVehicle}/status:
+    post:
+      tags: [Administration]
+      summary: Valide ou rejette un vehicule de location en attente (permission platform.manage)
+      parameters:
+        - $ref: "#/components/parameters/RentalVehicleId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [active, rejected] }
+      responses:
+        "200": { description: Statut modifie }
+
+  # --- Administration : offres, SMS Box, finances ----------------------------------------------
+
+  /promotions:
+    get:
+      tags: [Administration]
+      summary: Bannieres et tuiles « a la une » (permission promotions.view)
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - { name: zone, in: query, schema: { type: string, enum: [hero_banner, featured_tile] } }
+        - { name: is_active, in: query, schema: { type: boolean } }
+      responses:
+        "200": { description: Promotions paginees }
+    post:
+      tags: [Administration]
+      summary: Cree une promotion (permission promotions.manage)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PromotionInput" }
+      responses:
+        "201": { description: Promotion creee }
+
+  /promotions/{promotion}:
+    get:
+      tags: [Administration]
+      summary: Detail d'une promotion
+      parameters:
+        - $ref: "#/components/parameters/PromotionId"
+      responses:
+        "200": { description: Promotion }
+    patch:
+      tags: [Administration]
+      summary: Modifie une promotion (permission promotions.manage)
+      parameters:
+        - $ref: "#/components/parameters/PromotionId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PromotionInput" }
+      responses:
+        "200": { description: Promotion modifiee }
+    delete:
+      tags: [Administration]
+      summary: Supprime une promotion (permission promotions.manage)
+      parameters:
+        - $ref: "#/components/parameters/PromotionId"
+      responses:
+        "204": { description: Supprimee }
+
+  /sms/overview:
+    get:
+      tags: [Administration]
+      summary: Indicateurs du jour, cartes SIM et dix derniers envois (permission sms.view)
+      responses:
+        "200": { description: Vue d'ensemble du SMS Box }
+
+  /sms/queue:
+    get:
+      tags: [Administration]
+      summary: File d'envoi des billets par SMS (permission sms.view)
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - { name: status, in: query, schema: { type: string, enum: [pending, sent, failed] } }
+      responses:
+        "200": { description: Envois pagines }
+
+  /sms/sim-cards/{simCard}:
+    patch:
+      tags: [Administration]
+      summary: Met a jour le solde ou l'etat d'une carte SIM (permission sms.manage)
+      parameters:
+        - $ref: "#/components/parameters/SimCardId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                balance: { type: integer }
+                low_balance_threshold: { type: integer }
+                is_active: { type: boolean }
+      responses:
+        "200": { description: Carte SIM modifiee }
+
+  /finances:
+    get:
+      tags: [Administration]
+      summary: Commission plateforme par compagnie et par moyen de paiement (permission finance.view)
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+      responses:
+        "200": { description: Finances de la periode }
 
   # --- Suivi d'activite -----------------------------------------------------------------------
 
@@ -1594,6 +1745,8 @@ components:
     PartnerId: { name: partner, in: path, required: true, schema: { type: string, format: uuid } }
     ApartmentId: { name: apartment, in: path, required: true, schema: { type: string, format: uuid } }
     RentalVehicleId: { name: rentalVehicle, in: path, required: true, schema: { type: string, format: uuid } }
+    PromotionId: { name: promotion, in: path, required: true, schema: { type: string, format: uuid } }
+    SimCardId: { name: simCard, in: path, required: true, schema: { type: string, format: uuid } }
 
   responses:
     Unauthenticated:
@@ -2017,6 +2170,19 @@ components:
           type: array
           items: { type: string }
         is_featured: { type: boolean }
+        is_active: { type: boolean }
+
+    PromotionInput:
+      type: object
+      properties:
+        title: { type: string }
+        subtitle: { type: string, nullable: true }
+        zone: { type: string, enum: [hero_banner, featured_tile] }
+        kind: { type: string, enum: [editorial, advertisement] }
+        advertiser_name: { type: string, nullable: true }
+        partner_id: { type: string, format: uuid, nullable: true }
+        starts_at: { type: string, format: date, nullable: true }
+        ends_at: { type: string, format: date, nullable: true }
         is_active: { type: boolean }
 
     Apartment:

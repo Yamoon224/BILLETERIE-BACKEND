@@ -4,6 +4,7 @@ namespace App\Domains\Network\Services;
 
 use App\Domains\Network\Contracts\CompanyRepositoryContract;
 use App\Domains\Network\Exceptions\ResourceInUseException;
+use App\Domains\Shared\Enums\ListingStatus;
 use App\Models\Company;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
@@ -38,6 +39,15 @@ final class CompanyService
     public function update(Company $company, array $data): Company
     {
         return $this->companies->update($company, $data);
+    }
+
+    /**
+     * Decision de l'administrateur de plateforme sur une compagnie en
+     * attente de validation.
+     */
+    public function changeStatus(Company $company, ListingStatus $status): Company
+    {
+        return $this->companies->update($company, ['status' => $status]);
     }
 
     /** @throws ResourceInUseException */

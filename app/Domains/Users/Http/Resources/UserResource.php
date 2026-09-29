@@ -25,6 +25,11 @@ class UserResource extends JsonResource
                 'name' => $this->company->name,
             ] : null),
             'company_id' => $this->company_id,
+            'station' => $this->whenLoaded('station', fn () => $this->station ? [
+                'id' => $this->station->id,
+                'name' => $this->station->name,
+            ] : null),
+            'station_id' => $this->station_id,
             'last_login_at' => $this->last_login_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
         ];

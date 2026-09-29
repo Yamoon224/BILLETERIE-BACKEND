@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domains\Shared\Enums\ListingStatus;
 use Database\Factories\CompanyFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -23,6 +24,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property string|null $logo_path
  * @property int|null $commission_per_mille
  * @property bool $is_active
+ * @property ListingStatus $status
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -34,8 +36,17 @@ class Company extends Model
     /** @var list<string> */
     protected $fillable = [
         'code', 'name', 'legal_name', 'phone', 'email', 'logo_path',
-        'commission_per_mille', 'is_active',
+        'commission_per_mille', 'is_active', 'status',
     ];
+
+    /**
+     * Reflete le defaut de la colonne cote PHP : sans cela, un modele venant
+     * de `create()` garde un `status` nul en memoire jusqu'au premier
+     * rechargement, alors que la ligne en base porte deja `active`.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = ['status' => 'active'];
 
     /** @return array<string, string> */
     protected function casts(): array
@@ -43,6 +54,7 @@ class Company extends Model
         return [
             'is_active' => 'boolean',
             'commission_per_mille' => 'integer',
+            'status' => ListingStatus::class,
         ];
     }
 
@@ -98,7 +110,7 @@ class Company extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['code', 'name', 'legal_name', 'phone', 'email', 'commission_per_mille', 'is_active'])
+            ->logOnly(['code', 'name', 'legal_name', 'phone', 'email', 'commission_per_mille', 'is_active', 'status'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }

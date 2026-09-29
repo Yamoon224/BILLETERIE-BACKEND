@@ -22,8 +22,9 @@ final class EloquentUserRepository implements UserRepositoryContract
     public function paginate(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
         return User::query()
-            ->with(['roles:id,name', 'company:id,code,name'])
+            ->with(['roles:id,name', 'company:id,code,name', 'station:id,name'])
             ->when($filters['company_id'] ?? null, fn ($query, $id) => $query->where('company_id', $id))
+            ->when($filters['station_id'] ?? null, fn ($query, $id) => $query->where('station_id', $id))
             ->when($filters['role'] ?? null, fn ($query, $role) => $query->whereHas(
                 'roles',
                 fn ($roles) => $roles->where('name', $role),
@@ -45,7 +46,7 @@ final class EloquentUserRepository implements UserRepositoryContract
 
     public function findOrFail(string $id): User
     {
-        return User::query()->with(['roles:id,name', 'company'])->findOrFail($id);
+        return User::query()->with(['roles:id,name', 'company', 'station'])->findOrFail($id);
     }
 
     public function create(array $attributes): User

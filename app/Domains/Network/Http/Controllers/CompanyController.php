@@ -6,7 +6,9 @@ use App\Domains\Network\Http\Requests\StoreCompanyRequest;
 use App\Domains\Network\Http\Requests\UpdateCompanyRequest;
 use App\Domains\Network\Http\Resources\CompanyResource;
 use App\Domains\Network\Services\CompanyService;
+use App\Domains\Shared\Enums\ListingStatus;
 use App\Domains\Shared\Exceptions\CompanyScopeViolationException;
+use App\Domains\Shared\Http\Requests\UpdateListingStatusRequest;
 use App\Domains\Shared\Support\CompanyScope;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
@@ -28,7 +30,7 @@ class CompanyController extends Controller
 
     public function index(Request $request): AnonymousResourceCollection
     {
-        $filters = $request->only('search', 'is_active', 'sort', 'direction');
+        $filters = $request->only('search', 'is_active', 'status', 'sort', 'direction');
 
         // Un gestionnaire ne « liste » qu'une compagnie : la sienne. Le filtre
         // par identifiant est impose ici plutot que refuse, pour que l'ecran
@@ -63,6 +65,17 @@ class CompanyController extends Controller
         $this->authorizeCompany($request, $company);
 
         return new CompanyResource($this->companies->update($company, $request->validated()));
+    }
+
+    /**
+     * Validation ou rejet d'une compagnie par l'administrateur de
+     * plateforme (voir routes : reserve a `platform.manage`).
+     */
+    public function changeStatus(UpdateListingStatusRequest $request, Company $company): CompanyResource
+    {
+        return new CompanyResource(
+            $this->companies->changeStatus($company, ListingStatus::from($request->validated('status'))),
+        );
     }
 
     public function destroy(Company $company): Response

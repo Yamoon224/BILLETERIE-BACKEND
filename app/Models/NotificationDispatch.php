@@ -19,6 +19,7 @@ use Illuminate\Support\Carbon;
  * @property string $id
  * @property string|null $booking_id
  * @property string|null $ticket_id
+ * @property string|null $sim_card_id
  * @property NotificationChannel $channel
  * @property string $recipient
  * @property string $template
@@ -29,6 +30,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $sent_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property-read SimCard|null $simCard
  */
 class NotificationDispatch extends Model
 {
@@ -36,7 +38,7 @@ class NotificationDispatch extends Model
 
     /** @var list<string> */
     protected $fillable = [
-        'booking_id', 'ticket_id', 'channel', 'recipient', 'template',
+        'booking_id', 'ticket_id', 'sim_card_id', 'channel', 'recipient', 'template',
         'payload', 'status', 'attempts', 'error', 'sent_at',
     ];
 
@@ -62,5 +64,11 @@ class NotificationDispatch extends Model
     public function ticket(): BelongsTo
     {
         return $this->belongsTo(Ticket::class);
+    }
+
+    /** @return BelongsTo<SimCard, $this> */
+    public function simCard(): BelongsTo
+    {
+        return $this->belongsTo(SimCard::class);
     }
 }

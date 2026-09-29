@@ -59,6 +59,12 @@ class RolesAndPermissionsSeeder extends Seeder
         'housing.manage' => 'Creer et administrer les appartements.',
         'car_rental.view' => 'Consulter le catalogue de vehicules de location.',
         'car_rental.manage' => 'Creer et administrer les vehicules de location.',
+
+        'sms.view' => 'Consulter le SMS Box : cartes SIM et file d envoi des billets.',
+        'sms.manage' => 'Modifier le solde et l etat des cartes SIM.',
+        'promotions.view' => 'Consulter les bannieres et tuiles a la une de l accueil.',
+        'promotions.manage' => 'Creer, modifier et suspendre une promotion.',
+        'finance.view' => 'Consulter la commission plateforme, toutes compagnies confondues.',
     ];
 
     /**

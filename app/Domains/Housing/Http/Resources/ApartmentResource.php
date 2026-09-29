@@ -28,6 +28,8 @@ class ApartmentResource extends JsonResource
             'photo_urls' => $this->photo_urls ?? [],
             'is_featured' => $this->is_featured,
             'is_active' => $this->is_active,
+            'status' => $this->status->value,
+            'status_label' => $this->status->label(),
             'city' => $this->whenLoaded('city', fn () => [
                 'id' => $this->city->id,
                 'name' => $this->city->name,

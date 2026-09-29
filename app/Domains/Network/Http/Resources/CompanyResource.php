@@ -25,6 +25,8 @@ class CompanyResource extends JsonResource
             // ce qui sera facture, pas ce qui est stocke.
             'effective_commission_per_mille' => $this->effectiveCommissionPerMille(),
             'is_active' => $this->is_active,
+            'status' => $this->status->value,
+            'status_label' => $this->status->label(),
             'vehicles_count' => $this->whenCounted('vehicles'),
             'itineraries_count' => $this->whenCounted('itineraries'),
             'stations_count' => $this->whenCounted('stations'),

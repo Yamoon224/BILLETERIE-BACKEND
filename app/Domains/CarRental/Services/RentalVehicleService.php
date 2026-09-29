@@ -3,6 +3,7 @@
 namespace App\Domains\CarRental\Services;
 
 use App\Domains\CarRental\Contracts\RentalVehicleRepositoryContract;
+use App\Domains\Shared\Enums\ListingStatus;
 use App\Models\RentalVehicle;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
@@ -55,5 +56,11 @@ final class RentalVehicleService
     public function delete(RentalVehicle $rentalVehicle): void
     {
         $this->vehicles->delete($rentalVehicle);
+    }
+
+    /** Decision de l'administrateur de plateforme sur une fiche en attente. */
+    public function changeStatus(RentalVehicle $rentalVehicle, ListingStatus $status): RentalVehicle
+    {
+        return $this->vehicles->update($rentalVehicle, ['status' => $status]);
     }
 }

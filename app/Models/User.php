@@ -29,6 +29,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string|null $phone
  * @property string|null $company_id
  * @property string|null $partner_id
+ * @property string|null $station_id
  * @property bool $is_active
  * @property string|null $two_factor_secret
  * @property Carbon|null $two_factor_confirmed_at
@@ -37,6 +38,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property Carbon|null $updated_at
  * @property-read Company|null $company
  * @property-read Partner|null $partner
+ * @property-read Station|null $station
  */
 class User extends Authenticatable
 {
@@ -44,7 +46,7 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, HasRoles, HasUuids, LogsActivity, Notifiable;
 
     /** @var list<string> */
-    protected $fillable = ['name', 'email', 'phone', 'password', 'company_id', 'partner_id', 'is_active'];
+    protected $fillable = ['name', 'email', 'phone', 'password', 'company_id', 'partner_id', 'station_id', 'is_active'];
 
     /** @var list<string> */
     protected $hidden = ['password', 'remember_token', 'two_factor_secret'];
@@ -76,6 +78,12 @@ class User extends Authenticatable
         return $this->belongsTo(Partner::class);
     }
 
+    /** @return BelongsTo<Station, $this> */
+    public function station(): BelongsTo
+    {
+        return $this->belongsTo(Station::class);
+    }
+
     /** Ventes encaissees par cet utilisateur au guichet.
      *
      * @return HasMany<Booking, $this>
@@ -100,7 +108,7 @@ class User extends Authenticatable
             // Le mot de passe n'apparait jamais dans le journal, meme haché :
             // un journal d'audit est lu par plus de monde qu'une table de
             // comptes.
-            ->logOnly(['name', 'email', 'phone', 'company_id', 'partner_id', 'is_active'])
+            ->logOnly(['name', 'email', 'phone', 'company_id', 'partner_id', 'station_id', 'is_active'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }

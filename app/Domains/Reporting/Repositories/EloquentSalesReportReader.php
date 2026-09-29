@@ -209,6 +209,38 @@ final class EloquentSalesReportReader implements SalesReportReaderContract
             ->all();
     }
 
+    /** @return list<array{company_id: string, company_name: string, bookings: int, gross: int, commission: int, net: int}> */
+    public function commissionByCompany(ReportFilters $filters): array
+    {
+        return $this->confirmedBookings($filters)
+            ->join('companies', 'companies.id', '=', 'bookings.company_id')
+            ->select(
+                'bookings.company_id',
+                'companies.name as company_name',
+                DB::raw('COUNT(*) as bookings'),
+                DB::raw('SUM(bookings.total_amount) as gross'),
+                DB::raw('SUM(bookings.commission_amount) as commission'),
+            )
+            ->groupBy('bookings.company_id', 'companies.name')
+            ->orderByDesc('gross')
+            ->get()
+            ->map(static function ($row) {
+                $gross = (int) $row->getAttribute('gross');
+                $commission = (int) $row->getAttribute('commission');
+
+                return [
+                    'company_id' => (string) $row->getAttribute('company_id'),
+                    'company_name' => (string) $row->getAttribute('company_name'),
+                    'bookings' => (int) $row->getAttribute('bookings'),
+                    'gross' => $gross,
+                    'commission' => $commission,
+                    'net' => $gross - $commission,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
     /** @return Builder<Booking> */
     private function confirmedBookings(ReportFilters $filters): Builder
     {

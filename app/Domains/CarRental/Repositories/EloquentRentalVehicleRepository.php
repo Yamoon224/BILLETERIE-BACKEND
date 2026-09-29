@@ -28,6 +28,7 @@ final class EloquentRentalVehicleRepository implements RentalVehicleRepositoryCo
                 array_key_exists('is_active', $filters) && $filters['is_active'] !== null,
                 fn ($query) => $query->where('is_active', $filters['is_active']),
             )
+            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->tap(fn ($query) => Sort::apply($query, $filters, self::SORTABLE, 'created_at', 'desc'))
             ->paginate($perPage)
             ->withQueryString();

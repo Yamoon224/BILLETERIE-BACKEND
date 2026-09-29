@@ -32,6 +32,7 @@ final class EloquentCompanyRepository implements CompanyRepositoryContract
                 array_key_exists('is_active', $filters) && $filters['is_active'] !== null,
                 fn ($query) => $query->where('is_active', $filters['is_active']),
             )
+            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             // Une compagnie ne voit qu'elle-meme : le filtre vient du jeton de
             // l'appelant, jamais de la requete.
             ->when($filters['id'] ?? null, fn ($query, $id) => $query->where('id', $id))

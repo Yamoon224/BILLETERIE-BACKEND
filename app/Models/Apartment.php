@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domains\Shared\Enums\ListingStatus;
 use Database\Factories\ApartmentFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -30,6 +31,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property list<string>|null $photo_urls
  * @property bool $is_featured
  * @property bool $is_active
+ * @property ListingStatus $status
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Partner $partner
@@ -44,8 +46,11 @@ class Apartment extends Model
     protected $fillable = [
         'partner_id', 'city_id', 'title', 'description', 'neighborhood', 'address_line',
         'bedrooms', 'bathrooms', 'capacity', 'price_per_night', 'amenities',
-        'cover_photo_url', 'photo_urls', 'is_featured', 'is_active',
+        'cover_photo_url', 'photo_urls', 'is_featured', 'is_active', 'status',
     ];
+
+    /** @var array<string, mixed> */
+    protected $attributes = ['status' => 'active'];
 
     /** @return array<string, string> */
     protected function casts(): array
@@ -59,6 +64,7 @@ class Apartment extends Model
             'photo_urls' => 'array',
             'is_featured' => 'boolean',
             'is_active' => 'boolean',
+            'status' => ListingStatus::class,
         ];
     }
 
@@ -79,7 +85,7 @@ class Apartment extends Model
         return LogOptions::defaults()
             ->logOnly([
                 'partner_id', 'city_id', 'title', 'neighborhood', 'bedrooms', 'bathrooms',
-                'capacity', 'price_per_night', 'is_featured', 'is_active',
+                'capacity', 'price_per_night', 'is_featured', 'is_active', 'status',
             ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();

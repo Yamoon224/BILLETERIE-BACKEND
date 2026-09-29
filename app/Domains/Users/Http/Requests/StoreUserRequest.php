@@ -34,6 +34,9 @@ class StoreUserRequest extends FormRequest
             // `partner_id` cote gestionnaire de partenaire.
             'company_id' => ['nullable', 'uuid', 'exists:companies,id'],
             'partner_id' => ['nullable', 'uuid', 'exists:partners,id'],
+            // Gare d'affectation d'un agent de guichet ; sans objet pour les
+            // autres roles.
+            'station_id' => ['nullable', 'uuid', 'exists:stations,id'],
             'is_active' => ['nullable', 'boolean'],
             'roles' => ['required', 'array', 'min:1'],
             'roles.*' => ['string', 'exists:roles,name'],

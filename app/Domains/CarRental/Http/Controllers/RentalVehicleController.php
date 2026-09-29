@@ -6,7 +6,9 @@ use App\Domains\CarRental\Http\Requests\StoreRentalVehicleRequest;
 use App\Domains\CarRental\Http\Requests\UpdateRentalVehicleRequest;
 use App\Domains\CarRental\Http\Resources\RentalVehicleResource;
 use App\Domains\CarRental\Services\RentalVehicleService;
+use App\Domains\Shared\Enums\ListingStatus;
 use App\Domains\Shared\Exceptions\PartnerScopeViolationException;
+use App\Domains\Shared\Http\Requests\UpdateListingStatusRequest;
 use App\Domains\Shared\Support\PartnerScope;
 use App\Http\Controllers\Controller;
 use App\Models\RentalVehicle;
@@ -43,7 +45,7 @@ class RentalVehicleController extends Controller
     {
         return RentalVehicleResource::collection($this->vehicles->list(
             PartnerScope::apply(
-                $request->only('search', 'city_id', 'category', 'is_featured', 'is_active', 'sort', 'direction'),
+                $request->only('search', 'city_id', 'category', 'is_featured', 'is_active', 'status', 'sort', 'direction'),
                 $request->user(),
             ),
             $request->integer('per_page', 15),
@@ -76,6 +78,17 @@ class RentalVehicleController extends Controller
         $this->authorizeRentalVehicle($request, $rentalVehicle);
 
         return new RentalVehicleResource($this->vehicles->update($rentalVehicle, $request->validated()));
+    }
+
+    /**
+     * Validation ou rejet d'une fiche par l'administrateur de plateforme
+     * (voir routes : reserve a `platform.manage`).
+     */
+    public function changeStatus(UpdateListingStatusRequest $request, RentalVehicle $rentalVehicle): RentalVehicleResource
+    {
+        return new RentalVehicleResource(
+            $this->vehicles->changeStatus($rentalVehicle, ListingStatus::from($request->validated('status'))),
+        );
     }
 
     public function destroy(Request $request, RentalVehicle $rentalVehicle): Response

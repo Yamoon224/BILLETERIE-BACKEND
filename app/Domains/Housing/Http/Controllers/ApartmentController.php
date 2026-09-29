@@ -6,7 +6,9 @@ use App\Domains\Housing\Http\Requests\StoreApartmentRequest;
 use App\Domains\Housing\Http\Requests\UpdateApartmentRequest;
 use App\Domains\Housing\Http\Resources\ApartmentResource;
 use App\Domains\Housing\Services\ApartmentService;
+use App\Domains\Shared\Enums\ListingStatus;
 use App\Domains\Shared\Exceptions\PartnerScopeViolationException;
+use App\Domains\Shared\Http\Requests\UpdateListingStatusRequest;
 use App\Domains\Shared\Support\PartnerScope;
 use App\Http\Controllers\Controller;
 use App\Models\Apartment;
@@ -42,7 +44,7 @@ class ApartmentController extends Controller
     {
         return ApartmentResource::collection($this->apartments->list(
             PartnerScope::apply(
-                $request->only('search', 'city_id', 'is_featured', 'is_active', 'sort', 'direction'),
+                $request->only('search', 'city_id', 'is_featured', 'is_active', 'status', 'sort', 'direction'),
                 $request->user(),
             ),
             $request->integer('per_page', 15),
@@ -75,6 +77,17 @@ class ApartmentController extends Controller
         $this->authorizeApartment($request, $apartment);
 
         return new ApartmentResource($this->apartments->update($apartment, $request->validated()));
+    }
+
+    /**
+     * Validation ou rejet d'une fiche par l'administrateur de plateforme
+     * (voir routes : reserve a `platform.manage`).
+     */
+    public function changeStatus(UpdateListingStatusRequest $request, Apartment $apartment): ApartmentResource
+    {
+        return new ApartmentResource(
+            $this->apartments->changeStatus($apartment, ListingStatus::from($request->validated('status'))),
+        );
     }
 
     public function destroy(Request $request, Apartment $apartment): Response

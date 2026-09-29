@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Domains\CarRental\Enums\FuelType;
 use App\Domains\CarRental\Enums\RentalVehicleCategory;
 use App\Domains\CarRental\Enums\TransmissionType;
+use App\Domains\Shared\Enums\ListingStatus;
 use Database\Factories\RentalVehicleFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -34,6 +35,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property list<string>|null $photo_urls
  * @property bool $is_featured
  * @property bool $is_active
+ * @property ListingStatus $status
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Partner $partner
@@ -48,8 +50,11 @@ class RentalVehicle extends Model
     protected $fillable = [
         'partner_id', 'city_id', 'brand', 'model', 'year', 'category', 'transmission',
         'fuel_type', 'seats', 'price_per_day', 'with_driver_available', 'plate_number',
-        'cover_photo_url', 'photo_urls', 'is_featured', 'is_active',
+        'cover_photo_url', 'photo_urls', 'is_featured', 'is_active', 'status',
     ];
+
+    /** @var array<string, mixed> */
+    protected $attributes = ['status' => 'active'];
 
     /** @return array<string, string> */
     protected function casts(): array
@@ -65,6 +70,7 @@ class RentalVehicle extends Model
             'photo_urls' => 'array',
             'is_featured' => 'boolean',
             'is_active' => 'boolean',
+            'status' => ListingStatus::class,
         ];
     }
 
@@ -85,7 +91,7 @@ class RentalVehicle extends Model
         return LogOptions::defaults()
             ->logOnly([
                 'partner_id', 'city_id', 'brand', 'model', 'category', 'transmission',
-                'fuel_type', 'seats', 'price_per_day', 'is_featured', 'is_active',
+                'fuel_type', 'seats', 'price_per_day', 'is_featured', 'is_active', 'status',
             ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();

@@ -17,12 +17,17 @@ use App\Domains\Network\Http\Controllers\VehicleController;
 use App\Domains\Partners\Http\Controllers\PartnerController;
 use App\Domains\Payments\Http\Controllers\PaymentController;
 use App\Domains\Payments\Http\Controllers\PaymentWebhookController;
+use App\Domains\Promotions\Http\Controllers\PromotionController;
 use App\Domains\Reporting\Http\Controllers\DashboardController;
+use App\Domains\Reporting\Http\Controllers\FinanceController;
 use App\Domains\Reporting\Http\Controllers\SalesExportController;
 use App\Domains\RouteGrid\Http\Controllers\RouteGridController;
 use App\Domains\Scheduling\Http\Controllers\TripController;
 use App\Domains\Scheduling\Http\Controllers\TripSearchController;
 use App\Domains\Shared\Http\Controllers\HealthController;
+use App\Domains\Sms\Http\Controllers\SimCardController;
+use App\Domains\Sms\Http\Controllers\SmsBoxController;
+use App\Domains\Sms\Http\Controllers\SmsQueueController;
 use App\Domains\Ticketing\Http\Controllers\TicketController;
 use App\Domains\Ticketing\Http\Controllers\TicketValidationController;
 use App\Domains\Users\Http\Controllers\ProfileController;
@@ -271,6 +276,42 @@ Route::middleware('auth:sanctum')->group(function (): void {
         // pas lui-meme.
         Route::post('/partners', [PartnerController::class, 'store']);
         Route::delete('/partners/{partner}', [PartnerController::class, 'destroy']);
+
+        /*
+         * Validation ou rejet d'une fiche en attente : l'autorite de
+         * validation appartient a l'administrateur de plateforme seul, quel
+         * que soit le pilier (compagnies, appartements, location auto).
+         */
+        Route::post('/companies/{company}/status', [CompanyController::class, 'changeStatus']);
+        Route::post('/apartments/{apartment}/status', [ApartmentController::class, 'changeStatus']);
+        Route::post('/rental-vehicles/{rentalVehicle}/status', [RentalVehicleController::class, 'changeStatus']);
+    });
+
+    // --- SMS Box : cartes SIM et file d'envoi des billets ----------------------
+    Route::middleware('permission:sms.view')->group(function (): void {
+        Route::get('/sms/overview', SmsBoxController::class);
+        Route::get('/sms/queue', [SmsQueueController::class, 'index']);
+    });
+
+    Route::middleware('permission:sms.manage')->group(function (): void {
+        Route::patch('/sms/sim-cards/{simCard}', [SimCardController::class, 'update']);
+    });
+
+    // --- Offres & promotions : accueil du site voyageur -------------------------
+    Route::middleware('permission:promotions.view')->group(function (): void {
+        Route::get('/promotions', [PromotionController::class, 'index']);
+        Route::get('/promotions/{promotion}', [PromotionController::class, 'show']);
+    });
+
+    Route::middleware('permission:promotions.manage')->group(function (): void {
+        Route::post('/promotions', [PromotionController::class, 'store']);
+        Route::patch('/promotions/{promotion}', [PromotionController::class, 'update']);
+        Route::delete('/promotions/{promotion}', [PromotionController::class, 'destroy']);
+    });
+
+    // --- Finances : commission plateforme, toutes compagnies confondues --------
+    Route::middleware('permission:finance.view')->group(function (): void {
+        Route::get('/finances', FinanceController::class);
     });
 
     // --- Partenaires : appartements, location auto ----------------------------

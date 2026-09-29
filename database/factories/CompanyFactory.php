@@ -31,4 +31,9 @@ class CompanyFactory extends Factory
     {
         return $this->state(fn () => ['is_active' => false]);
     }
+
+    public function pending(): static
+    {
+        return $this->state(fn () => ['status' => 'pending']);
+    }
 }

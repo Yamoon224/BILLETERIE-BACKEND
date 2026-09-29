@@ -35,6 +35,7 @@ class UpdateUserRequest extends FormRequest
             'password' => ['nullable', Password::min(8)],
             'company_id' => ['nullable', 'uuid', 'exists:companies,id'],
             'partner_id' => ['nullable', 'uuid', 'exists:partners,id'],
+            'station_id' => ['nullable', 'uuid', 'exists:stations,id'],
             'is_active' => ['sometimes', 'boolean'],
             'roles' => ['sometimes', 'array', 'min:1'],
             'roles.*' => ['string', 'exists:roles,name'],

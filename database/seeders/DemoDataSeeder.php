@@ -14,14 +14,19 @@ use App\Domains\Network\Enums\VehicleClass;
 use App\Domains\Partners\Enums\PartnerType;
 use App\Domains\Payments\Enums\MobileMoneyProvider;
 use App\Domains\Payments\Services\PaymentService;
+use App\Domains\Promotions\Enums\PromotionKind;
+use App\Domains\Promotions\Enums\PromotionZone;
 use App\Domains\Scheduling\Services\TripService;
+use App\Domains\Sms\Enums\SimOperator;
 use App\Models\Apartment;
 use App\Models\City;
 use App\Models\Company;
 use App\Models\Itinerary;
 use App\Models\Partner;
+use App\Models\Promotion;
 use App\Models\RentalVehicle;
 use App\Models\RouteGridEntry;
+use App\Models\SimCard;
 use App\Models\Station;
 use App\Models\Trip;
 use App\Models\User;
@@ -80,6 +85,9 @@ class DemoDataSeeder extends Seeder
         $this->seedSales();
         $this->seedPartners($cities);
         $this->seedRouteGrid($cities);
+        $this->seedPendingCompany($cities);
+        $this->seedSimCards();
+        $this->seedPromotions();
 
         $this->command->info("Compte administrateur : {$admin->email} / password");
     }
@@ -193,18 +201,6 @@ class DemoDataSeeder extends Seeder
         );
         $manager->syncRoles(['company_manager']);
 
-        $agent = User::firstOrCreate(
-            ['email' => "agent.{$suffix}@billetterie.test"],
-            [
-                'name' => 'Agent guichet '.$company->code,
-                'phone' => '+225070000'.random_int(1000, 9999),
-                'password' => Hash::make('password'),
-                'company_id' => $company->id,
-                'is_active' => true,
-            ],
-        );
-        $agent->syncRoles(['agent']);
-
         // Gares partagees : une par ville, comme les gares routieres reelles.
         $stations = [];
 
@@ -214,6 +210,21 @@ class DemoDataSeeder extends Seeder
                 ['address' => 'Quartier central, '.$city->name, 'is_active' => true],
             );
         }
+
+        // Affecte a la gare de la ligne pilote : c'est la que se tient un
+        // guichet dans la demonstration.
+        $agent = User::firstOrCreate(
+            ['email' => "agent.{$suffix}@billetterie.test"],
+            [
+                'name' => 'Agent guichet '.$company->code,
+                'phone' => '+225070000'.random_int(1000, 9999),
+                'password' => Hash::make('password'),
+                'company_id' => $company->id,
+                'station_id' => $stations['bonoua']->id,
+                'is_active' => true,
+            ],
+        );
+        $agent->syncRoles(['agent']);
 
         $vehicles = [];
 
@@ -456,5 +467,115 @@ class DemoDataSeeder extends Seeder
         }
 
         $this->command->info(count($apartments).' appartements et '.count($rentalVehicles).' vehicules de location crees.');
+
+        // Deux fiches laissees en attente de validation, pour que l'ecran
+        // Partenaires de l'administrateur ait quelque chose a trancher.
+        RentalVehicle::where('partner_id', $rentalPartner->id)
+            ->where('brand', 'Toyota')->where('model', 'Yaris')
+            ->update(['status' => 'pending']);
+
+        Apartment::firstOrCreate(
+            ['partner_id' => $housingPartner->id, 'title' => 'Villa 4 chambres'],
+            [
+                'city_id' => $cities['jacqueville']->id,
+                'description' => 'Villa recente avec jardin, a quelques minutes de la plage.',
+                'neighborhood' => 'Jacqueville Centre',
+                'bedrooms' => 4,
+                'bathrooms' => 3,
+                'capacity' => 8,
+                'price_per_night' => 55000,
+                'amenities' => [ApartmentAmenity::Wifi->value, ApartmentAmenity::Parking->value],
+                'is_featured' => false,
+                'is_active' => true,
+                'status' => 'pending',
+            ],
+        );
+    }
+
+    /**
+     * Une compagnie en attente de validation, pour que l'ecran Compagnies de
+     * l'administrateur ait quelque chose a trancher a l'ouverture.
+     *
+     * @param  array<string, City>  $cities
+     */
+    private function seedPendingCompany(array $cities): void
+    {
+        Company::firstOrCreate(['code' => 'IVR'], [
+            'name' => 'Ivoire Rapid',
+            'legal_name' => 'Ivoire Rapid SARL',
+            'phone' => '+2252700112233',
+            'email' => 'contact@ivoire-rapid.example',
+            'commission_per_mille' => null,
+            'is_active' => true,
+            'status' => 'pending',
+        ]);
+    }
+
+    /** Cartes SIM du SMS Box, avec le MTN volontairement sous le seuil d'alerte. */
+    private function seedSimCards(): void
+    {
+        $balances = [
+            SimOperator::Orange->value => 7200,
+            SimOperator::Mtn->value => 800,
+            SimOperator::Moov->value => 4100,
+        ];
+
+        foreach ($balances as $operator => $balance) {
+            SimCard::firstOrCreate(
+                ['operator' => $operator],
+                ['balance' => $balance, 'low_balance_threshold' => 1000, 'is_active' => true],
+            );
+        }
+    }
+
+    /** Banniere hero et tuiles « a la une », comme sur la maquette de l'accueil. */
+    private function seedPromotions(): void
+    {
+        $admin = User::where('email', 'admin@billetterie.test')->first();
+
+        Promotion::firstOrCreate(
+            ['title' => '-20 % sur votre 1er trajet Bonoua-Treichville'],
+            [
+                'zone' => PromotionZone::HeroBanner,
+                'kind' => PromotionKind::Editorial,
+                'is_active' => true,
+                'created_by' => $admin?->id,
+            ],
+        );
+
+        Promotion::firstOrCreate(
+            ['title' => 'Ligne Bonoua-Treichville : nouveaux departs 6h et 17h'],
+            [
+                'subtitle' => 'Badge Kaara (editorial) - non publicitaire',
+                'zone' => PromotionZone::FeaturedTile,
+                'kind' => PromotionKind::Editorial,
+                'is_active' => true,
+                'created_by' => $admin?->id,
+            ],
+        );
+
+        Promotion::firstOrCreate(
+            ['title' => 'Studio meuble a Assinie des 15 000 FCFA/nuit'],
+            [
+                'subtitle' => 'Espace publicitaire payant',
+                'zone' => PromotionZone::FeaturedTile,
+                'kind' => PromotionKind::Advertisement,
+                'advertiser_name' => 'Residences Assinie SARL',
+                'is_active' => true,
+                'created_by' => $admin?->id,
+            ],
+        );
+
+        Promotion::firstOrCreate(
+            ['title' => "Location auto a l'aeroport d'Abidjan des 25 000 FCFA/jour"],
+            [
+                'subtitle' => 'Espace publicitaire payant',
+                'zone' => PromotionZone::FeaturedTile,
+                'kind' => PromotionKind::Advertisement,
+                'advertiser_name' => 'LocAuto CI',
+                'is_active' => true,
+                'created_by' => $admin?->id,
+            ],
+        );
     }
 }

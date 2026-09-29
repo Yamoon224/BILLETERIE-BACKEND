@@ -82,4 +82,12 @@ interface SalesReportReaderContract
      * @return list<array{user_id: string, name: string, bookings: int, tickets: int, amount: int}>
      */
     public function salesByAgent(ReportFilters $filters): array;
+
+    /**
+     * Commission plateforme par compagnie, pour l'ecran Finances de
+     * l'administrateur.
+     *
+     * @return list<array{company_id: string, company_name: string, bookings: int, gross: int, commission: int, net: int}>
+     */
+    public function commissionByCompany(ReportFilters $filters): array;
 }

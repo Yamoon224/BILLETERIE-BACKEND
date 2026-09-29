@@ -35,7 +35,7 @@ class UserController extends Controller
     {
         return UserResource::collection($this->users->list(
             CompanyScope::apply(
-                $request->only('search', 'role', 'is_active', 'sort', 'direction'),
+                $request->only('search', 'role', 'is_active', 'station_id', 'sort', 'direction'),
                 $request->user(),
             ),
             $request->integer('per_page', 15),
@@ -44,7 +44,7 @@ class UserController extends Controller
 
     public function store(StoreUserRequest $request): JsonResponse
     {
-        $data = $request->safe()->only('name', 'email', 'phone', 'password', 'company_id', 'partner_id', 'is_active');
+        $data = $request->safe()->only('name', 'email', 'phone', 'password', 'company_id', 'partner_id', 'station_id', 'is_active');
         /** @var list<string> $roles */
         $roles = $request->input('roles');
 
@@ -71,7 +71,7 @@ class UserController extends Controller
     {
         $this->authorizeUser($request, $user);
 
-        $data = $request->safe()->only('name', 'email', 'phone', 'password', 'company_id', 'partner_id', 'is_active');
+        $data = $request->safe()->only('name', 'email', 'phone', 'password', 'company_id', 'partner_id', 'station_id', 'is_active');
         /** @var list<string>|null $roles */
         $roles = $request->input('roles');
 

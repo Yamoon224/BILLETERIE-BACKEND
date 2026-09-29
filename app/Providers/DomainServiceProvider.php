@@ -29,6 +29,8 @@ use App\Domains\Partners\Repositories\EloquentPartnerRepository;
 use App\Domains\Payments\Contracts\PaymentGatewayContract;
 use App\Domains\Payments\Contracts\PaymentRepositoryContract;
 use App\Domains\Payments\Repositories\EloquentPaymentRepository;
+use App\Domains\Promotions\Contracts\PromotionRepositoryContract;
+use App\Domains\Promotions\Repositories\EloquentPromotionRepository;
 use App\Domains\Reporting\Contracts\SalesReportReaderContract;
 use App\Domains\Reporting\Repositories\EloquentSalesReportReader;
 use App\Domains\RouteGrid\Contracts\RouteGridRepositoryContract;
@@ -36,6 +38,10 @@ use App\Domains\RouteGrid\Repositories\EloquentRouteGridRepository;
 use App\Domains\Scheduling\Contracts\TripLookupContract;
 use App\Domains\Scheduling\Contracts\TripRepositoryContract;
 use App\Domains\Scheduling\Repositories\EloquentTripRepository;
+use App\Domains\Sms\Contracts\SimCardRepositoryContract;
+use App\Domains\Sms\Contracts\SmsQueueRepositoryContract;
+use App\Domains\Sms\Repositories\EloquentSimCardRepository;
+use App\Domains\Sms\Repositories\EloquentSmsQueueRepository;
 use App\Domains\Ticketing\Contracts\OccupiedSeatReaderContract;
 use App\Domains\Ticketing\Contracts\QrCodeRendererContract;
 use App\Domains\Ticketing\Contracts\TicketRepositoryContract;
@@ -81,6 +87,11 @@ class DomainServiceProvider extends ServiceProvider
         PartnerRepositoryContract::class => EloquentPartnerRepository::class,
         ApartmentRepositoryContract::class => EloquentApartmentRepository::class,
         RentalVehicleRepositoryContract::class => EloquentRentalVehicleRepository::class,
+
+        // --- Console d'administration : SMS Box, offres, finances -------------
+        SimCardRepositoryContract::class => EloquentSimCardRepository::class,
+        SmsQueueRepositoryContract::class => EloquentSmsQueueRepository::class,
+        PromotionRepositoryContract::class => EloquentPromotionRepository::class,
 
         // --- Exploitation ----------------------------------------------------
         TripRepositoryContract::class => EloquentTripRepository::class,
