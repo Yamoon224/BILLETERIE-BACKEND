@@ -3,6 +3,7 @@
 namespace App\Domains\Auth\Http\Controllers;
 
 use App\Domains\Auth\Http\Requests\LoginRequest;
+use App\Domains\Auth\Http\Requests\PinLoginRequest;
 use App\Domains\Auth\Http\Requests\RegisterRequest;
 use App\Domains\Auth\Http\Resources\AuthenticatedUserResource;
 use App\Domains\Auth\Services\AuthService;
@@ -19,6 +20,21 @@ class AuthController extends Controller
         $result = $this->authService->attempt(
             $request->only('login', 'password', 'code'),
             $request->input('device_name', 'api'),
+        );
+
+        return response()->json([
+            'data' => [
+                'token' => $result['token'],
+                'user' => new AuthenticatedUserResource($result['user']->load('company')),
+            ],
+        ]);
+    }
+
+    public function loginWithPin(PinLoginRequest $request): JsonResponse
+    {
+        $result = $this->authService->attemptWithPin(
+            $request->only('login', 'pin'),
+            $request->input('device_name', 'agent-tablet'),
         );
 
         return response()->json([

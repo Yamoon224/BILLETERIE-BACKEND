@@ -31,6 +31,9 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string|null $partner_id
  * @property string|null $station_id
  * @property bool $is_active
+ * @property string|null $pin_code_hash
+ * @property int $pin_failed_attempts
+ * @property Carbon|null $pin_locked_until
  * @property string|null $two_factor_secret
  * @property Carbon|null $two_factor_confirmed_at
  * @property Carbon|null $last_login_at
@@ -46,10 +49,10 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, HasRoles, HasUuids, LogsActivity, Notifiable;
 
     /** @var list<string> */
-    protected $fillable = ['name', 'email', 'phone', 'password', 'company_id', 'partner_id', 'station_id', 'is_active'];
+    protected $fillable = ['name', 'email', 'phone', 'password', 'pin_code_hash', 'company_id', 'partner_id', 'station_id', 'is_active'];
 
     /** @var list<string> */
-    protected $hidden = ['password', 'remember_token', 'two_factor_secret'];
+    protected $hidden = ['password', 'pin_code_hash', 'remember_token', 'two_factor_secret'];
 
     /** @return array<string, string> */
     protected function casts(): array
@@ -59,6 +62,9 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'two_factor_confirmed_at' => 'datetime',
             'password' => 'hashed',
+            'pin_code_hash' => 'hashed',
+            'pin_failed_attempts' => 'integer',
+            'pin_locked_until' => 'datetime',
             // Chiffre au repos : une fuite de base ne suffit pas a rejouer les
             // codes d'un compte admin, contrairement a un secret stocke en clair.
             'two_factor_secret' => 'encrypted',

@@ -30,6 +30,7 @@ class UserResource extends JsonResource
                 'name' => $this->station->name,
             ] : null),
             'station_id' => $this->station_id,
+            'has_pin' => $this->pin_code_hash !== null,
             'last_login_at' => $this->last_login_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
         ];

@@ -72,6 +72,76 @@ final class AuthService
     }
 
     /**
+     * Connexion rapide au guichet, par code PIN plutot que par mot de passe.
+     *
+     * Reservee aux comptes agents porteurs d'un PIN : meme si un autre role en
+     * possedait un par erreur de saisie administrative, cette porte reste
+     * fermee pour lui - un code a quatre chiffres n'est un compromis
+     * acceptable que pour le perimetre etroit d'un agent de guichet.
+     *
+     * @param  array{login: string, pin: string}  $credentials
+     * @return array{user: User, token: string}
+     *
+     * @throws ValidationException
+     */
+    public function attemptWithPin(array $credentials, string $deviceName = 'agent-tablet'): array
+    {
+        $user = $this->resolveUser(trim($credentials['login']));
+
+        if ($user === null || $user->pin_code_hash === null || ! $user->hasRole('agent')) {
+            throw ValidationException::withMessages([
+                'login' => ['Identifiants invalides.'],
+            ]);
+        }
+
+        if ($user->pin_locked_until !== null && $user->pin_locked_until->isFuture()) {
+            throw ValidationException::withMessages([
+                'pin' => ['Trop de tentatives. Reessayez dans quelques minutes ou utilisez votre mot de passe.'],
+            ]);
+        }
+
+        if (! Hash::check($credentials['pin'], $user->pin_code_hash)) {
+            $this->registerFailedPinAttempt($user);
+
+            throw ValidationException::withMessages([
+                'pin' => ['Code PIN invalide.'],
+            ]);
+        }
+
+        if (! $user->is_active) {
+            throw ValidationException::withMessages([
+                'login' => ['Ce compte est desactive. Contactez votre administrateur.'],
+            ]);
+        }
+
+        $user->forceFill([
+            'pin_failed_attempts' => 0,
+            'pin_locked_until' => null,
+            'last_login_at' => Carbon::now(),
+        ])->save();
+
+        return [
+            'user' => $user,
+            'token' => $user->createToken($deviceName)->plainTextToken,
+        ];
+    }
+
+    /**
+     * Blocage temporaire apres plusieurs echecs : la seule defense qui compte
+     * face a un code a quatre chiffres, dont l'espace se parcourt en quelques
+     * minutes sans elle.
+     */
+    private function registerFailedPinAttempt(User $user): void
+    {
+        $attempts = $user->pin_failed_attempts + 1;
+
+        $user->forceFill([
+            'pin_failed_attempts' => $attempts,
+            'pin_locked_until' => $attempts >= 5 ? Carbon::now()->addMinutes(15) : null,
+        ])->save();
+    }
+
+    /**
      * Retrouve le compte vise par l'identifiant saisi : une adresse e-mail,
      * un numero de telephone, ou - pour le gestionnaire d'une compagnie de
      * transport - le code de sa compagnie (« STC », « UTB », ...), plus facile

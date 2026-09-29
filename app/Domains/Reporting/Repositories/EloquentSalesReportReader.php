@@ -12,6 +12,7 @@ use App\Models\Booking;
 use App\Models\Payment;
 use App\Models\Trip;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -239,6 +240,32 @@ final class EloquentSalesReportReader implements SalesReportReaderContract
             })
             ->values()
             ->all();
+    }
+
+    /** @return array{tickets_sold: int, cash_amount: int, mobile_money_amount: int, total_amount: int} */
+    public function cashierSummary(string $userId, Carbon $date): array
+    {
+        // La date qui compte est celle de l'encaissement, pas celle de la
+        // reservation : une vente d'especes se paie sur-le-champ au guichet,
+        // mais une session de caisse doit rester juste meme dans le cas rare
+        // d'une reservation creee la veille et reglee ce matin.
+        $payments = Payment::query()
+            ->whereHas('booking', fn ($query) => $query->where('sold_by_user_id', $userId))
+            ->where('status', PaymentStatus::Succeeded)
+            ->whereDate('paid_at', $date)
+            ->with('booking:id,seats_count')
+            ->get();
+
+        $cash = (int) $payments->where('method', PaymentMethod::Cash)->sum('amount');
+        $mobileMoney = (int) $payments->where('method', PaymentMethod::MobileMoney)->sum('amount');
+        $ticketsSold = (int) $payments->sum(fn ($payment) => $payment->booking->seats_count ?? 0);
+
+        return [
+            'tickets_sold' => $ticketsSold,
+            'cash_amount' => $cash,
+            'mobile_money_amount' => $mobileMoney,
+            'total_amount' => $cash + $mobileMoney,
+        ];
     }
 
     /** @return Builder<Booking> */

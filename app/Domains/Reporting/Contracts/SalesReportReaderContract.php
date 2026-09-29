@@ -3,6 +3,7 @@
 namespace App\Domains\Reporting\Contracts;
 
 use App\Domains\Reporting\DTOs\ReportFilters;
+use Illuminate\Support\Carbon;
 
 /**
  * Lectures agregees du suivi d'activite.
@@ -90,4 +91,12 @@ interface SalesReportReaderContract
      * @return list<array{company_id: string, company_name: string, bookings: int, gross: int, commission: int, net: int}>
      */
     public function commissionByCompany(ReportFilters $filters): array;
+
+    /**
+     * Cloture de caisse d'un agent : ce qu'il a physiquement encaisse un jour
+     * donne, par moyen de paiement.
+     *
+     * @return array{tickets_sold: int, cash_amount: int, mobile_money_amount: int, total_amount: int}
+     */
+    public function cashierSummary(string $userId, Carbon $date): array;
 }

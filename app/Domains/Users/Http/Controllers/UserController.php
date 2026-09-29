@@ -44,7 +44,9 @@ class UserController extends Controller
 
     public function store(StoreUserRequest $request): JsonResponse
     {
-        $data = $request->safe()->only('name', 'email', 'phone', 'password', 'company_id', 'partner_id', 'station_id', 'is_active');
+        $data = $this->withPinCodeHash(
+            $request->safe()->only('name', 'email', 'phone', 'password', 'pin_code', 'company_id', 'partner_id', 'station_id', 'is_active'),
+        );
         /** @var list<string> $roles */
         $roles = $request->input('roles');
 
@@ -71,7 +73,9 @@ class UserController extends Controller
     {
         $this->authorizeUser($request, $user);
 
-        $data = $request->safe()->only('name', 'email', 'phone', 'password', 'company_id', 'partner_id', 'station_id', 'is_active');
+        $data = $this->withPinCodeHash(
+            $request->safe()->only('name', 'email', 'phone', 'password', 'pin_code', 'company_id', 'partner_id', 'station_id', 'is_active'),
+        );
         /** @var list<string>|null $roles */
         $roles = $request->input('roles');
 
@@ -113,5 +117,31 @@ class UserController extends Controller
         if (array_diff($roles, self::COMPANY_ASSIGNABLE_ROLES) !== []) {
             throw CompanyScopeViolationException::make();
         }
+    }
+
+    /**
+     * Traduit le code PIN saisi vers la colonne qui le stocke hache.
+     *
+     * `pin_code` n'existe que dans la requete : le laisser passer tel quel
+     * jusqu'au modele l'ecrirait en clair, la ou `pin_code_hash` est hache a
+     * l'affectation (voir User::casts()).
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function withPinCodeHash(array $data): array
+    {
+        if (array_key_exists('pin_code', $data)) {
+            $pinCode = $data['pin_code'];
+            unset($data['pin_code']);
+
+            // Vide dans un formulaire d'edition signifie « ne pas changer »,
+            // jamais « retirer le PIN » : meme convention que le mot de passe.
+            if ($pinCode !== null) {
+                $data['pin_code_hash'] = $pinCode;
+            }
+        }
+
+        return $data;
     }
 }

@@ -33,6 +33,7 @@ class UpdateUserRequest extends FormRequest
             // Vide signifie « ne pas changer » : sans ce `nullable`, chaque
             // modification de nom reinitialiserait le mot de passe.
             'password' => ['nullable', Password::min(8)],
+            'pin_code' => ['nullable', 'string', 'regex:/^\d{4}$/'],
             'company_id' => ['nullable', 'uuid', 'exists:companies,id'],
             'partner_id' => ['nullable', 'uuid', 'exists:partners,id'],
             'station_id' => ['nullable', 'uuid', 'exists:stations,id'],

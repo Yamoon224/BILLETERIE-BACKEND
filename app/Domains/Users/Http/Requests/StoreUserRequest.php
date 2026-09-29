@@ -29,6 +29,9 @@ class StoreUserRequest extends FormRequest
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
             'phone' => ['nullable', 'string', 'max:20', Rule::unique('users', 'phone')],
             'password' => ['required', Password::min(8)],
+            // Connexion rapide au guichet ; sans objet pour les autres roles,
+            // ou l'API ne verifie de toute facon jamais ce code.
+            'pin_code' => ['nullable', 'string', 'regex:/^\d{4}$/'],
             // Impose par le controleur pour un gestionnaire de compagnie : il
             // ne cree des comptes que dans la sienne. Meme logique pour
             // `partner_id` cote gestionnaire de partenaire.

@@ -90,6 +90,7 @@ class DemoDataSeeder extends Seeder
         $this->seedPromotions();
 
         $this->command->info("Compte administrateur : {$admin->email} / password");
+        $this->command->info('Agents guichet : agent.utb@billetterie.test / agent.stc@billetterie.test — mot de passe "password", PIN "1234"');
     }
 
     /** @return array<string, City> */
@@ -221,6 +222,10 @@ class DemoDataSeeder extends Seeder
                 'password' => Hash::make('password'),
                 'company_id' => $company->id,
                 'station_id' => $stations['bonoua']->id,
+                // PIN de demonstration : connexion rapide au guichet, voir
+                // AuthService::attemptWithPin(). Hache a l'affectation
+                // (User::casts()).
+                'pin_code_hash' => '1234',
                 'is_active' => true,
             ],
         );

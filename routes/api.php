@@ -18,6 +18,7 @@ use App\Domains\Partners\Http\Controllers\PartnerController;
 use App\Domains\Payments\Http\Controllers\PaymentController;
 use App\Domains\Payments\Http\Controllers\PaymentWebhookController;
 use App\Domains\Promotions\Http\Controllers\PromotionController;
+use App\Domains\Reporting\Http\Controllers\CashierSummaryController;
 use App\Domains\Reporting\Http\Controllers\DashboardController;
 use App\Domains\Reporting\Http\Controllers\FinanceController;
 use App\Domains\Reporting\Http\Controllers\SalesExportController;
@@ -71,6 +72,14 @@ Route::get('/health', HealthController::class);
 // =============================================================================
 
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
+
+/*
+ * Connexion rapide au guichet par code PIN. Debit plus large que le login
+ * classique parce qu'un agent qui se trompe deux fois de suite sur une
+ * tablette doit pouvoir reessayer sans attendre - le blocage qui compte est
+ * celui, par compte, dans AuthService::registerFailedPinAttempt().
+ */
+Route::post('/login/pin', [AuthController::class, 'loginWithPin'])->middleware('throttle:10,1');
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:6,1');
 
 // Referentiel de recherche : villes desservies et departs disponibles.
@@ -178,6 +187,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
          * ventes deja encaissees.
          */
         Route::post('/offline-sales/sync', OfflineSyncController::class)->middleware('throttle:60,1');
+
+        // Cloture de caisse : ce que l'agent connecte a lui-meme encaisse.
+        Route::get('/me/cashier-summary', CashierSummaryController::class);
     });
 
     // --- Controle a l'embarquement -------------------------------------------
