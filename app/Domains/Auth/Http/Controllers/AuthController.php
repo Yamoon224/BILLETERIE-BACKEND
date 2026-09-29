@@ -25,7 +25,7 @@ class AuthController extends Controller
         return response()->json([
             'data' => [
                 'token' => $result['token'],
-                'user' => new AuthenticatedUserResource($result['user']->load('company')),
+                'user' => new AuthenticatedUserResource($result['user']->load(['company', 'station'])),
             ],
         ]);
     }
@@ -40,7 +40,7 @@ class AuthController extends Controller
         return response()->json([
             'data' => [
                 'token' => $result['token'],
-                'user' => new AuthenticatedUserResource($result['user']->load('company')),
+                'user' => new AuthenticatedUserResource($result['user']->load(['company', 'station'])),
             ],
         ]);
     }
@@ -69,6 +69,6 @@ class AuthController extends Controller
 
     public function me(Request $request): AuthenticatedUserResource
     {
-        return new AuthenticatedUserResource($request->user()->load('company'));
+        return new AuthenticatedUserResource($request->user()->load(['company', 'station']));
     }
 }

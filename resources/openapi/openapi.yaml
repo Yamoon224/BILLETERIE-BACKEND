@@ -1891,6 +1891,7 @@ components:
         phone: { type: string, nullable: true }
         company_id: { type: string, format: uuid, nullable: true }
         partner_id: { type: string, format: uuid, nullable: true }
+        station_id: { type: string, format: uuid, nullable: true }
         roles:
           type: array
           items: { type: string, enum: [platform_admin, company_manager, agent, partner_manager, passenger] }

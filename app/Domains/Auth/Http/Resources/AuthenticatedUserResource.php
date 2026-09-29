@@ -35,6 +35,11 @@ class AuthenticatedUserResource extends JsonResource
                 'name' => $this->company->name,
             ]),
             'company_id' => $this->company_id,
+            'station' => $this->whenLoaded('station', fn () => $this->station ? [
+                'id' => $this->station->id,
+                'name' => $this->station->name,
+            ] : null),
+            'station_id' => $this->station_id,
             'roles' => $this->getRoleNames()->values()->all(),
             'permissions' => $this->getAllPermissions()->pluck('name')->values()->all(),
             'last_login_at' => $this->last_login_at?->toIso8601String(),
